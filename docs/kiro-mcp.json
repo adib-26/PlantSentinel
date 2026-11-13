@@ -1,0 +1,20 @@
+{
+  "mcpServers": {
+    "bas-intelligence": {
+      "url": "http://localhost:8080/mcp",
+      "headers": {
+        "X-API-Key": "${BAS_AGENT_API_KEY}"
+      },
+      "disabled": false,
+      "autoApprove": [
+        "machine_get_status",
+        "machine_get_telemetry",
+        "machine_detect_anomaly",
+        "machine_get_failure_prediction",
+        "machine_get_history",
+        "machine_get_specifications",
+        "maintenance_search_manual"
+      ]
+    }
+  }
+}

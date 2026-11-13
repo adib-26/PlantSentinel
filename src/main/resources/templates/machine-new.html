@@ -1,0 +1,47 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org">
+<head th:replace="~{fragments :: head('Register machine')}"></head>
+<body>
+<nav th:replace="~{fragments :: nav}"></nav>
+<main class="container" style="max-width: 640px;">
+    <h1 class="h3 mb-3">Register machine</h1>
+    <div th:if="${error}" class="alert alert-danger" th:text="${error}">error</div>
+    <div class="card"><div class="card-body">
+        <form th:action="@{/machines}" th:object="${form}" method="post" novalidate>
+            <div class="mb-3">
+                <label class="form-label" for="code">Machine code</label>
+                <input id="code" th:field="*{code}" class="form-control" th:classappend="${#fields.hasErrors('code')} ? 'is-invalid'"
+                       placeholder="e.g. CNC-05" required>
+                <div class="invalid-feedback" th:errors="*{code}">error</div>
+                <div class="form-text">The BAS edge node sends this code with every reading.</div>
+            </div>
+            <div class="mb-3">
+                <label class="form-label" for="name">Name</label>
+                <input id="name" th:field="*{name}" class="form-control" th:classappend="${#fields.hasErrors('name')} ? 'is-invalid'" required>
+                <div class="invalid-feedback" th:errors="*{name}">error</div>
+            </div>
+            <div class="mb-3">
+                <label class="form-label" for="type">Machine type</label>
+                <select id="type" th:field="*{type}" class="form-select">
+                    <option th:each="t : ${machineTypes}" th:value="${t}" th:text="${t.displayName()}">type</option>
+                </select>
+                <div class="form-text">Sets the operating envelope used for anomaly detection and risk features.</div>
+            </div>
+            <div class="mb-3">
+                <label class="form-label" for="factoryCode">Factory</label>
+                <select id="factoryCode" th:field="*{factoryCode}" class="form-select">
+                    <option th:each="f : ${factories}" th:value="${f.code()}" th:text="${f.name() + ' (' + f.code() + ')'}">factory</option>
+                </select>
+            </div>
+            <div class="mb-3">
+                <label class="form-label" for="location">Location</label>
+                <input id="location" th:field="*{location}" class="form-control">
+            </div>
+            <button class="btn btn-primary" type="submit">Register</button>
+            <a class="btn btn-link" th:href="@{/}">Cancel</a>
+        </form>
+    </div></div>
+</main>
+<th:block th:replace="~{fragments :: scripts}"></th:block>
+</body>
+</html>

@@ -1,0 +1,55 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org">
+<head th:replace="~{fragments :: head(${document.title()})}"></head>
+<body>
+<nav th:replace="~{fragments :: nav}"></nav>
+<main class="container-fluid px-4">
+    <a class="small" th:href="@{/manuals}">← Knowledge</a>
+    <h1 class="h3 mb-1" th:text="${document.title()}">Title</h1>
+    <p class="text-secondary small" th:text="${document.filename() + ' · ' + (document.contentType() ?: '') + ' · ' + (document.machineType() == null ? 'general' : document.machineType().displayName()) + ' · uploaded by ' + document.uploadedBy() + ' ' + @fmt.time(document.uploadedAt()) + ' · sha256 ' + #strings.substring(document.sha256(), 0, 12)}">meta</p>
+    <div class="row g-3">
+        <div class="col-xl-8">
+            <div class="card mb-4"><div class="card-body">
+                <h2 class="h5" th:text="${'Extracted sections (' + sections.size() + ')'}">Sections</h2>
+                <p class="small text-secondary">Apache Tika text, split at headings. Each section is one retrievable passage.</p>
+                <div th:each="c : ${sections}" class="section-item border rounded p-2 mb-2" th:id="'chunk-' + ${c.id()}">
+                    <div class="d-flex justify-content-between">
+                        <strong th:text="${c.section() ?: '(no heading)'}">section</strong>
+                        <span class="small text-secondary">
+                            <span th:if="${c.pageStart() != null}" th:text="${c.pageEnd() == null or c.pageEnd() == c.pageStart()} ? ${'p. ' + c.pageStart()} : ${'pp. ' + c.pageStart() + '–' + c.pageEnd()}">p</span>
+                            <span th:text="${'#' + c.chunkIndex() + ' · ' + #strings.length(c.content()) + ' chars'}">#0</span>
+                        </span>
+                    </div>
+                    <div class="evidence-detail mt-1" th:text="${c.content()}">text</div>
+                    <div class="small mt-1" th:if="${citationsByChunk.containsKey(c.id())}">
+                        Cited by:
+                        <a th:each="x : ${citationsByChunk.get(c.id())}" class="me-2"
+                           th:href="@{/investigations/{id}(id=${x.investigationId()})} + '#' + ${x.refLabel()}"
+                           th:text="${'INV-' + x.investigationId() + ' ' + x.refLabel()}">INV</a>
+                    </div>
+                </div>
+            </div></div>
+        </div>
+        <div class="col-xl-4">
+            <div class="card"><div class="card-body">
+                <h2 class="h5">Document references</h2>
+                <p class="small text-secondary">Investigations that used a section of this document as evidence.</p>
+                <table class="table table-sm small mb-0">
+                    <thead><tr><th>Investigation</th><th>Machine</th><th>Evidence</th><th>By</th></tr></thead>
+                    <tbody>
+                    <tr th:each="x : ${citations}">
+                        <td><a th:href="@{/investigations/{id}(id=${x.investigationId()})}" th:text="'INV-' + ${x.investigationId()}">INV-1</a></td>
+                        <td th:text="${x.machineCode()}">CNC-01</td>
+                        <td><a th:href="'#chunk-' + ${x.chunkId()}" th:text="${x.refLabel()}">E6</a></td>
+                        <td th:text="${x.requestedBy()}">u</td>
+                    </tr>
+                    <tr th:if="${citations.isEmpty()}"><td colspan="4" class="text-secondary">Not cited yet.</td></tr>
+                    </tbody>
+                </table>
+            </div></div>
+        </div>
+    </div>
+</main>
+<th:block th:replace="~{fragments :: scripts}"></th:block>
+</body>
+</html>

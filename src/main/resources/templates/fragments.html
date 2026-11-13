@@ -1,0 +1,60 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org" xmlns:sec="http://www.thymeleaf.org/extras/spring-security">
+<head th:fragment="head(title)">
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title th:text="${title} + ' · BAS Intelligence'">BAS Intelligence</title>
+    <link rel="stylesheet" th:href="@{/webjars/bootstrap/css/bootstrap.min.css}">
+    <link rel="stylesheet" th:href="@{/css/app.css}">
+</head>
+<body>
+<nav th:fragment="nav" class="navbar navbar-expand-md navbar-dark bg-dark mb-4">
+    <div class="container-fluid">
+        <a class="navbar-brand fw-semibold" th:href="@{/}">BAS Intelligence</a>
+        <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#nav"
+                aria-controls="nav" aria-expanded="false" aria-label="Toggle navigation">
+            <span class="navbar-toggler-icon"></span>
+        </button>
+        <div class="collapse navbar-collapse" id="nav">
+            <ul class="navbar-nav me-auto">
+                <li class="nav-item"><a class="nav-link" th:classappend="${currentPath == '/' or #strings.startsWith(currentPath, '/machines')} ? 'active'" th:href="@{/}">Overview</a></li>
+                <li class="nav-item"><a class="nav-link" th:classappend="${#strings.startsWith(currentPath, '/analytics') or #strings.startsWith(currentPath, '/models')} ? 'active'" th:href="@{/analytics}">Analytics</a></li>
+                <li class="nav-item"><a class="nav-link" th:classappend="${#strings.startsWith(currentPath, '/assistant') or #strings.startsWith(currentPath, '/investigations')} ? 'active'" th:href="@{/assistant}">Kiro assistant</a></li>
+                <li class="nav-item"><a class="nav-link" th:classappend="${#strings.startsWith(currentPath, '/maintenance')} ? 'active'" th:href="@{/maintenance}">Maintenance</a></li>
+                <li class="nav-item"><a class="nav-link" th:classappend="${#strings.startsWith(currentPath, '/manuals')} ? 'active'" th:href="@{/manuals}">Knowledge</a></li>
+                <li class="nav-item" sec:authorize="hasRole('ADMIN')"><a class="nav-link" th:classappend="${#strings.startsWith(currentPath, '/admin')} ? 'active'" th:href="@{/admin}">Administration</a></li>
+                <li class="nav-item" sec:authorize="hasRole('ADMIN')"><a class="nav-link" th:classappend="${#strings.startsWith(currentPath, '/agent')} ? 'active'" th:href="@{/agent}">Agent activity</a></li>
+                <li class="nav-item" sec:authorize="hasRole('ADMIN')"><a class="nav-link" th:classappend="${#strings.startsWith(currentPath, '/audit')} ? 'active'" th:href="@{/audit}">Audit log</a></li>
+                <li class="nav-item"><a class="nav-link" th:href="@{/swagger-ui.html}">API</a></li>
+            </ul>
+            <span class="navbar-text me-3 small">
+                <span sec:authentication="name">user</span>
+                <span class="text-secondary" sec:authorize="hasRole('ADMIN')">· admin</span>
+                <span class="text-secondary" sec:authorize="hasRole('ENGINEER') and !hasRole('ADMIN')">· engineer</span>
+                <span class="text-secondary" sec:authorize="hasRole('TECHNICIAN') and !hasRole('ENGINEER')">· technician</span>
+                <span class="text-secondary" sec:authorize="!hasRole('ENGINEER') and !hasRole('TECHNICIAN')">· read-only</span>
+            </span>
+            <form th:action="@{/logout}" method="post" class="d-flex">
+                <button class="btn btn-outline-light btn-sm" type="submit">Sign out</button>
+            </form>
+        </div>
+    </div>
+</nav>
+
+<div th:fragment="flash">
+    <div th:if="${flash}" class="alert alert-success alert-dismissible fade show" role="alert">
+        <span th:text="${flash}">Saved</span>
+        <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+    </div>
+</div>
+
+<span th:fragment="badge(value)" class="badge" th:classappend="'text-bg-' + ${@fmt.tone(value)}" th:text="${value}">STATUS</span>
+
+<span th:fragment="classBadge(cls)" class="badge" th:classappend="'text-bg-' + ${@fmt.tone(cls)}"
+      th:text="${cls.label()}" th:title="${cls.meaning()}">CLASS</span>
+
+<th:block th:fragment="scripts">
+    <script th:src="@{/webjars/bootstrap/js/bootstrap.bundle.min.js}"></script>
+</th:block>
+</body>
+</html>

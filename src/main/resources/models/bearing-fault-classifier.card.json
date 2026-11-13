@@ -1,0 +1,92 @@
+{
+  "name" : "bearing-fault-classifier",
+  "version" : "1.0.0",
+  "task" : "Classification: normal, inner race, ball or outer race fault",
+  "algorithm" : "Smile RandomForest, 100 trees",
+  "artifact" : "bearing-fault-classifier-v1.0.0.ser",
+  "artifactSha256" : "44f8d5f2451abd48607f018466b0873ccc2bdaaa1cd24966b9177d18d47679a0",
+  "trainedAt" : "2026-11-12T09:40:06.095259Z",
+  "dataset" : {
+    "name" : "CWRU Bearing Data Center, 12 kHz drive end, 0.007 in, 0-3 hp",
+    "source" : "https://engineering.case.edu/bearingdatacenter",
+    "licence" : "Public research data; not redistributed",
+    "version" : "cwru/97_DE.csv@sha256:9407753c18eef371,cwru/98_DE.csv@sha256:4e02f10adb63dc72,cwru/99_DE.csv@sha256:4e02f10adb63dc72,cwru/100_DE.csv@sha256:de39613edfc12bed,cwru/105_DE.csv@sha256:b942ea74c7fbe4b3,cwru/106_DE.csv@sha256:d8cc17ac0a3f1c03,cwru/107_DE.csv@sha256:bf36770c60ae2c82,cwru/108_DE.csv@sha256:d246398f21847d87,cwru/118_DE.csv@sha256:68876c1d0f0fff55,cwru/119_DE.csv@sha256:fc0e3f410e3d834c,cwru/120_DE.csv@sha256:61b0e5bc466b9878,cwru/121_DE.csv@sha256:9b6dfd3b5ca17aa8,cwru/130_DE.csv@sha256:4637ae13256c77f1,cwru/131_DE.csv@sha256:fd56da66fbd25a30,cwru/132_DE.csv@sha256:a953525314b3e5e7,cwru/133_DE.csv@sha256:0b290fd5ccdb3c32",
+    "trainRows" : 1422,
+    "validationRows" : 827,
+    "testRows" : 831,
+    "splitStrategy" : "by motor load: train 0-1 hp, validation 2 hp, test 3 hp"
+  },
+  "features" : [ {
+    "name" : "rms",
+    "unit" : "g",
+    "definition" : "Root mean square acceleration"
+  }, {
+    "name" : "peak",
+    "unit" : "g",
+    "definition" : "Maximum absolute acceleration"
+  }, {
+    "name" : "crest_factor",
+    "unit" : "ratio",
+    "definition" : "Peak / RMS"
+  }, {
+    "name" : "kurtosis",
+    "unit" : "ratio",
+    "definition" : "Fourth standardised moment (3 for Gaussian noise)"
+  }, {
+    "name" : "skewness",
+    "unit" : "ratio",
+    "definition" : "Third standardised moment"
+  }, {
+    "name" : "shape_factor",
+    "unit" : "ratio",
+    "definition" : "RMS / mean absolute value"
+  }, {
+    "name" : "impulse_factor",
+    "unit" : "ratio",
+    "definition" : "Peak / mean absolute value"
+  }, {
+    "name" : "band_0_1000hz",
+    "unit" : "share",
+    "definition" : "Share of spectral energy between 0 and 1000 Hz"
+  }, {
+    "name" : "band_1000_2000hz",
+    "unit" : "share",
+    "definition" : "Share of spectral energy between 1000 and 2000 Hz"
+  }, {
+    "name" : "band_2000_3000hz",
+    "unit" : "share",
+    "definition" : "Share of spectral energy between 2000 and 3000 Hz"
+  }, {
+    "name" : "band_3000_4000hz",
+    "unit" : "share",
+    "definition" : "Share of spectral energy between 3000 and 4000 Hz"
+  }, {
+    "name" : "band_4000_6000hz",
+    "unit" : "share",
+    "definition" : "Share of spectral energy between 4000 and 6000 Hz"
+  } ],
+  "decisionThreshold" : null,
+  "validationMetrics" : {
+    "accuracy" : 1.0,
+    "macro_f1" : 1.0
+  },
+  "testMetrics" : {
+    "accuracy" : 1.0,
+    "macro_f1" : 1.0
+  },
+  "limitations" : [ "Seeded 0.007 in faults on a single rig; natural faults and other fault sizes are not covered." ],
+  "featureImportance" : {
+    "rms" : 0.1715842190151419,
+    "peak" : 0.16381605750608597,
+    "shape_factor" : 0.11261354476578116,
+    "band_0_1000hz" : 0.1079334936935693,
+    "kurtosis" : 0.09938496340180272,
+    "band_4000_6000hz" : 0.09412838044103172,
+    "band_3000_4000hz" : 0.09211948390920731,
+    "band_1000_2000hz" : 0.07758987332482956,
+    "band_2000_3000hz" : 0.07418019469396955,
+    "impulse_factor" : 0.003941817302842826,
+    "crest_factor" : 0.0027074489764754624,
+    "skewness" : 5.229692625169141E-7
+  }
+}

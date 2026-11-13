@@ -1,0 +1,78 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org" xmlns:sec="http://www.thymeleaf.org/extras/spring-security">
+<head th:replace="~{fragments :: head('Kiro assistant')}"></head>
+<body>
+<nav th:replace="~{fragments :: nav}"></nav>
+<main class="container-fluid px-4">
+    <div th:replace="~{fragments :: flash}"></div>
+    <h1 class="h3 mb-1">Kiro assistant</h1>
+    <p class="text-secondary mb-3">Ask about a machine in plain language. Every answer opens as an investigation that shows
+        which readings, model predictions and manual sections it used.</p>
+    <div class="row g-3">
+        <div class="col-xl-5">
+            <div class="card mb-3"><div class="card-body">
+                <h2 class="h5">Ask a question</h2>
+                <form sec:authorize="hasRole('ENGINEER')" th:action="@{/assistant/ask}" method="post">
+                    <textarea name="question" class="form-control mb-2" rows="3" maxlength="1000" required
+                              placeholder="Why is CNC-01 showing a high failure risk?"></textarea>
+                    <div class="d-flex gap-2">
+                        <select name="machineCode" class="form-select" style="max-width:16rem">
+                            <option value="">Machine named in the question</option>
+                            <option th:each="m : ${machines}" th:value="${m.code()}" th:text="${m.code() + ' · ' + m.name()}">m</option>
+                        </select>
+                        <button class="btn btn-primary" type="submit">Investigate</button>
+                    </div>
+                </form>
+                <p sec:authorize="!hasRole('ENGINEER')" class="text-secondary small">Read-only users can browse the history; engineers can ask.</p>
+                <div class="small mt-2">Try:
+                    <span th:each="e : ${examples}" class="badge text-bg-light border me-1 fw-normal" th:text="${e}">ex</span>
+                </div>
+            </div></div>
+            <div class="card mb-3"><div class="card-body small">
+                <h2 class="h5">Two ways to get an answer</h2>
+                <p class="mb-2"><strong>Here in the browser</strong>, BAS Intelligence runs its Java investigation pipeline:
+                    telemetry trends, anomaly detectors, the risk model, inspections and manual retrieval, then fault-signature
+                    rules. It is deterministic and uses no language model.</p>
+                <p class="mb-2"><strong>In Kiro</strong>, the agent calls the same tools over MCP and adds its own written
+                    interpretation, shown as <span class="badge text-bg-warning">AI interpretation</span> with the full tool trace.</p>
+                <pre class="bg-light border rounded p-2 mb-1"><code>./mcp/kiro-demo.sh
+# or in Kiro CLI:  kiro-cli chat --v3 --agent bas-investigator
+#                  /investigate_machine CNC-01</code></pre>
+                <span class="text-secondary">Either way, recommendations are only proposals until an engineer approves them.</span>
+            </div></div>
+            <div class="card"><div class="card-body small">
+                <h2 class="h5">Recent agent sessions</h2>
+                <ul class="list-unstyled mb-0">
+                    <li th:each="s : ${sessions}" th:text="${(s.clientName() ?: 'unknown client') + ' · ' + s.toolCalls() + ' tool calls · ' + @fmt.ago(s.lastSeenAt())}">s</li>
+                    <li th:if="${sessions.isEmpty()}" class="text-secondary">No MCP sessions yet.</li>
+                </ul>
+            </div></div>
+        </div>
+        <div class="col-xl-7">
+            <div class="card"><div class="card-body">
+                <h2 class="h5">Investigation history</h2>
+                <table class="table table-sm align-middle small mb-0">
+                    <thead><tr><th>#</th><th>Machine</th><th>Question</th><th>Answered by</th><th>Diagnosis</th><th>Risk</th><th>Status</th></tr></thead>
+                    <tbody>
+                    <tr th:each="i : ${history}">
+                        <td><a th:href="@{/investigations/{id}(id=${i.id()})}" th:text="'INV-' + ${i.id()}">INV-1</a></td>
+                        <td th:text="${machineCodes.get(i.machineId())}">CNC-01</td>
+                        <td th:text="${i.question() == null ? '–' : #strings.abbreviate(i.question(), 60)}">q</td>
+                        <td>
+                            <span th:if="${i.requestedBy() == agentName}" class="badge text-bg-warning">Kiro via MCP</span>
+                            <span th:unless="${i.requestedBy() == agentName}" class="badge text-bg-secondary" th:text="${'pipeline · ' + i.requestedBy()}">web</span>
+                        </td>
+                        <td th:text="${i.diagnosis()}">d</td>
+                        <td><span th:if="${i.riskLevel() != null}" th:replace="~{fragments :: badge(${i.riskLevel()})}"></span></td>
+                        <td><span th:replace="~{fragments :: badge(${i.status()})}"></span></td>
+                    </tr>
+                    <tr th:if="${history.isEmpty()}"><td colspan="7" class="text-secondary">No investigations yet.</td></tr>
+                    </tbody>
+                </table>
+            </div></div>
+        </div>
+    </div>
+</main>
+<th:block th:replace="~{fragments :: scripts}"></th:block>
+</body>
+</html>

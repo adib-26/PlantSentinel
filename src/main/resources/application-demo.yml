@@ -1,0 +1,28 @@
+# Offline demo profile: embedded H2 (PostgreSQL compatibility mode) persisted under ./data.
+# Demo credentials are for local use only. Never use them with a shared database.
+spring:
+  datasource:
+    url: jdbc:h2:file:${bas.data-dir}/bas-demo;MODE=PostgreSQL;DATABASE_TO_LOWER=TRUE;DEFAULT_NULL_ORDERING=HIGH;AUTO_SERVER=FALSE
+    username: sa
+    password: ""
+
+bas:
+  security:
+    edge-api-key: ${BAS_EDGE_API_KEY:demo-edge-key-change-me}
+    agent-api-key: ${BAS_AGENT_API_KEY:demo-agent-key-change-me}
+    users:
+      - username: admin
+        password: ${BAS_ADMIN_PASSWORD:admin123}
+        roles: [ADMIN, ENGINEER, VIEWER]
+      - username: engineer
+        password: ${BAS_ENGINEER_PASSWORD:engineer123}
+        roles: [ENGINEER, VIEWER]
+      - username: reviewer
+        password: ${BAS_REVIEWER_PASSWORD:reviewer123}
+        roles: [ENGINEER, VIEWER]
+      - username: technician
+        password: ${BAS_TECHNICIAN_PASSWORD:technician123}
+        roles: [TECHNICIAN, VIEWER]
+      - username: viewer
+        password: ${BAS_VIEWER_PASSWORD:viewer123}
+        roles: [VIEWER]

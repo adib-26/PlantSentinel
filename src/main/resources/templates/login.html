@@ -1,0 +1,26 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org">
+<head th:replace="~{fragments :: head('Sign in')}"></head>
+<body>
+<main class="container" style="max-width: 420px; margin-top: 10vh;">
+    <h1 class="h3 mb-1">BAS Intelligence</h1>
+    <p class="text-secondary mb-4">Industrial monitoring, predictive maintenance and diagnostics</p>
+    <div th:if="${param.error}" class="alert alert-danger">Invalid username or password.</div>
+    <div th:if="${param.logout}" class="alert alert-info">You have been signed out.</div>
+    <div th:if="${param.expired}" class="alert alert-warning">Your session was ended because your account was changed. Sign in again.</div>
+    <div class="card"><div class="card-body">
+        <form th:action="@{/login}" method="post">
+            <div class="mb-3">
+                <label for="username" class="form-label">Username</label>
+                <input id="username" name="username" class="form-control" autocomplete="username" required autofocus>
+            </div>
+            <div class="mb-3">
+                <label for="password" class="form-label">Password</label>
+                <input id="password" name="password" type="password" class="form-control" autocomplete="current-password" required>
+            </div>
+            <button class="btn btn-primary w-100" type="submit">Sign in</button>
+        </form>
+    </div></div>
+</main>
+</body>
+</html>

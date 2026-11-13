@@ -1,0 +1,166 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org" xmlns:sec="http://www.thymeleaf.org/extras/spring-security">
+<head th:replace="~{fragments :: head('Maintenance')}"></head>
+<body>
+<nav th:replace="~{fragments :: nav}"></nav>
+<main class="container-fluid px-4">
+    <div th:replace="~{fragments :: flash}"></div>
+    <h1 class="h3 mb-1">Maintenance management</h1>
+    <p class="text-secondary">Recommendations from the pipeline or Kiro become work orders only after an engineer
+        (other than the proposer) approves them.</p>
+
+    <div class="card mb-3" id="pending"><div class="card-body">
+        <h2 class="h5">Pending approvals <span class="badge text-bg-warning" th:text="${pending.size()}">1</span></h2>
+        <div th:each="row : ${pending}" th:with="r=${row.recommendation()}" class="border rounded p-2 mb-2">
+            <div class="d-flex flex-wrap justify-content-between gap-2">
+                <div>
+                    <span th:replace="~{fragments :: badge(${r.priority()})}"></span>
+                    <a th:href="@{/machines/{c}(c=${row.machineCode()})}" th:text="${row.machineCode()}">CNC-01</a> ·
+                    <a th:href="@{/investigations/{id}(id=${row.investigationId()})}" th:text="'INV-' + ${row.investigationId()}">INV-1</a>
+                    <span class="small text-secondary" th:text="${'· ' + row.diagnosis()}">d</span>
+                </div>
+                <small class="text-secondary" th:text="${'proposed by ' + r.proposedBy() + ' · ' + @fmt.ago(r.proposedAt())}">by</small>
+            </div>
+            <div class="fw-semibold mt-1" th:text="${r.action()}">action</div>
+            <div class="small" th:text="${#strings.abbreviate(r.rationale(), 300)}">rationale</div>
+            <form sec:authorize="hasRole('ENGINEER')" th:if="${r.proposedBy() != #authentication.name}"
+                  th:action="@{/recommendations/{id}/review(id=${r.id()})}" method="post" class="d-flex gap-2 mt-2">
+                <input type="hidden" name="investigationId" th:value="${row.investigationId()}">
+                <input type="hidden" name="returnTo" value="/maintenance">
+                <input name="comment" class="form-control form-control-sm" maxlength="1000" placeholder="Review comment">
+                <button name="approve" value="true" class="btn btn-sm btn-success" type="submit">Approve</button>
+                <button name="approve" value="false" class="btn btn-sm btn-outline-danger" type="submit">Reject</button>
+            </form>
+            <div sec:authorize="hasRole('ENGINEER')" th:if="${r.proposedBy() == #authentication.name}" class="small text-secondary mt-1">
+                You proposed this; another engineer must review it.</div>
+        </div>
+        <p th:if="${pending.isEmpty()}" class="text-secondary mb-0">Nothing waiting for approval.</p>
+    </div></div>
+
+    <div class="row g-3 mb-3">
+        <div class="col-xl-7">
+            <div class="card h-100" id="work-orders"><div class="card-body">
+                <h2 class="h5">Work orders</h2>
+                <div class="table-scroll">
+                <table class="table table-sm align-middle small mb-0">
+                    <thead><tr><th>#</th><th>Machine</th><th>Work</th><th>Priority</th><th>Status</th><th>Technician</th><th></th></tr></thead>
+                    <tbody>
+                    <tr th:each="w : ${workOrders}">
+                        <td th:text="${w.id()}">1</td>
+                        <td><a th:href="@{/machines/{c}(c=${machineCodes.get(w.machineId())})}" th:text="${machineCodes.get(w.machineId())}">CNC-01</a></td>
+                        <td>
+                            <div th:text="${#strings.abbreviate(w.action(), 90)}">a</div>
+                            <div class="text-secondary" th:text="${'planned ' + @fmt.time(w.plannedAt()) + ' by ' + w.plannedBy()}">p</div>
+                            <div class="text-secondary" th:if="${w.completedAt() != null}"
+                                 th:text="${'completed ' + @fmt.time(w.completedAt()) + ' by ' + w.completedBy() + (w.notes() != null ? ': ' + w.notes() : '')}">c</div>
+                        </td>
+                        <td><span th:replace="~{fragments :: badge(${w.priority()})}"></span></td>
+                        <td><span th:replace="~{fragments :: badge(${w.status()})}"></span></td>
+                        <td>
+                            <div th:text="${w.assignedTo() ?: 'unassigned'}">t</div>
+                            <form sec:authorize="hasRole('ENGINEER')" th:if="${w.status().name() == 'PLANNED'}"
+                                  th:action="@{/maintenance/{id}/assign(id=${w.id()})}" method="post" class="d-flex gap-1 mt-1">
+                                <select name="technician" class="form-select form-select-sm" style="min-width:8.5rem" required>
+                                    <option value="" th:selected="${w.assignedTo() == null}" disabled>Choose…</option>
+                                    <option th:each="t : ${technicians}" th:value="${t}" th:text="${t}" th:selected="${t == w.assignedTo()}">t</option>
+                                </select>
+                                <button class="btn btn-sm btn-outline-primary" type="submit">Assign</button>
+                            </form>
+                        </td>
+                        <td>
+                            <form sec:authorize="hasAnyRole('ENGINEER', 'TECHNICIAN')" th:if="${w.status().name() == 'PLANNED'}"
+                                  th:action="@{/maintenance/{id}/complete(id=${w.id()})}" method="post" class="d-flex gap-1">
+                                <input type="hidden" name="returnTo" value="/maintenance#work-orders">
+                                <input name="notes" class="form-control form-control-sm" maxlength="2000" placeholder="Findings">
+                                <select name="confirmedFailure" class="form-select form-select-sm" title="Only if the inspection found an actual failure">
+                                    <option value="">No failure found</option>
+                                    <option th:each="f : ${failureModes}" th:value="${f}" th:text="${'Failure: ' + f}">BEARING</option>
+                                </select>
+                                <button class="btn btn-sm btn-outline-success" type="submit">Complete</button>
+                            </form>
+                        </td>
+                    </tr>
+                    <tr th:if="${workOrders.isEmpty()}"><td colspan="7" class="text-secondary">No work orders yet.</td></tr>
+                    </tbody>
+                </table>
+                </div>
+            </div></div>
+        </div>
+        <div class="col-xl-5">
+            <div class="card mb-3"><div class="card-body">
+                <h2 class="h5">Incident reports</h2>
+                <ul class="list-unstyled small mb-0">
+                    <li th:each="r : ${reports}" class="mb-1">
+                        <a th:href="@{/investigations/{id}(id=${r.investigationId()})} + '#report'" th:text="${r.title()}">t</a>
+                        <span class="text-secondary" th:text="${'· ' + r.generatedBy() + ' · ' + @fmt.time(r.generatedAt())}">by</span>
+                        <a th:href="@{/investigations/{id}/report.md(id=${r.investigationId()})}">.md</a>
+                    </li>
+                    <li th:if="${reports.isEmpty()}" class="text-secondary">No reports issued yet.</li>
+                </ul>
+            </div></div>
+            <div class="card"><div class="card-body">
+                <h2 class="h5">Recommendations</h2>
+                <div class="table-scroll">
+                <table class="table table-sm small mb-0">
+                    <thead><tr><th>INV</th><th>Machine</th><th>Status</th><th>Proposed by</th><th>Reviewed by</th></tr></thead>
+                    <tbody>
+                    <tr th:each="row : ${recommendations}" th:with="r=${row.recommendation()}">
+                        <td><a th:href="@{/investigations/{id}(id=${row.investigationId()})}" th:text="${row.investigationId()}">1</a></td>
+                        <td th:text="${row.machineCode()}">CNC-01</td>
+                        <td><span th:replace="~{fragments :: badge(${r.status()})}"></span></td>
+                        <td th:text="${r.proposedBy()}">p</td>
+                        <td th:text="${r.reviewedBy() ?: '–'}">r</td>
+                    </tr>
+                    </tbody>
+                </table>
+                </div>
+            </div></div>
+        </div>
+    </div>
+
+    <div class="row g-3 mb-4">
+        <div class="col-xl-6">
+            <div class="card h-100"><div class="card-body">
+                <h2 class="h5">Approval decisions</h2>
+                <p class="small text-secondary">One row per decision (approvals table). The database rejects any row where the
+                    decider is the proposer.</p>
+                <table class="table table-sm small mb-0">
+                    <thead><tr><th>Time</th><th>Machine</th><th>Decision</th><th>Proposed by</th><th>Decided by</th><th>Comment</th></tr></thead>
+                    <tbody>
+                    <tr th:each="a : ${approvals}">
+                        <td class="text-nowrap" th:text="${@fmt.time(a.decidedAt())}">t</td>
+                        <td><a th:href="@{/investigations/{id}(id=${a.investigationId()})}" th:text="${a.machineCode()}">CNC-01</a></td>
+                        <td><span th:replace="~{fragments :: badge(${a.decision()})}"></span></td>
+                        <td th:text="${a.proposedBy()}">p</td>
+                        <td th:text="${a.decidedBy()}">d</td>
+                        <td th:text="${a.comment() ?: ''}">c</td>
+                    </tr>
+                    <tr th:if="${approvals.isEmpty()}"><td colspan="6" class="text-secondary">No decisions yet.</td></tr>
+                    </tbody>
+                </table>
+            </div></div>
+        </div>
+        <div class="col-xl-6">
+            <div class="card h-100"><div class="card-body">
+                <h2 class="h5">Approval audit trail</h2>
+                <div class="table-scroll">
+                <table class="table table-sm small mb-0">
+                    <thead><tr><th>Time</th><th>Actor</th><th>Action</th><th>Target</th><th>Detail</th></tr></thead>
+                    <tbody>
+                    <tr th:each="e : ${trail}">
+                        <td class="text-nowrap" th:text="${@fmt.time(e.occurredAt())}">t</td>
+                        <td th:text="${e.actor()}">a</td>
+                        <td th:text="${e.action()}">x</td>
+                        <td th:text="${e.target()}">t</td>
+                        <td th:text="${e.detail()}">d</td>
+                    </tr>
+                    </tbody>
+                </table>
+                </div>
+            </div></div>
+        </div>
+    </div>
+</main>
+<th:block th:replace="~{fragments :: scripts}"></th:block>
+</body>
+</html>

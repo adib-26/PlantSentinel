@@ -1,0 +1,321 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org" xmlns:sec="http://www.thymeleaf.org/extras/spring-security">
+<head th:replace="~{fragments :: head(${machine.code()})}"></head>
+<body>
+<nav th:replace="~{fragments :: nav}"></nav>
+<main class="container-fluid px-4">
+    <div th:replace="~{fragments :: flash}"></div>
+
+    <div class="d-flex flex-wrap justify-content-between align-items-start gap-3 mb-3">
+        <div>
+            <h1 class="h3 mb-0">
+                <span th:text="${machine.code()}">CNC-01</span>
+                <span th:replace="~{fragments :: badge(${machine.healthStatus()})}"></span>
+            </h1>
+            <div class="text-secondary" th:text="${machine.name() + ' · ' + machine.type().displayName() + ' · ' + (machine.location() ?: '')}">desc</div>
+            <small class="text-secondary" th:text="'Last reading ' + ${@fmt.ago(machine.lastSeenAt())}">seen</small>
+        </div>
+        <form sec:authorize="hasRole('ENGINEER')" th:action="@{/machines/{code}/investigations(code=${machine.code()})}" method="post"
+              class="d-flex gap-2" style="min-width: 420px;">
+            <input name="question" class="form-control" maxlength="1000"
+                   placeholder="Optional question, e.g. why is vibration rising?">
+            <button class="btn btn-primary text-nowrap" type="submit">Investigate</button>
+        </form>
+    </div>
+
+    <div class="card mb-3 border-warning" id="incident" th:if="${activeIncident != null or !incidents.isEmpty()}"
+         sec:authorize="hasRole('VIEWER')">
+        <div class="card-body py-2">
+            <div th:if="${activeIncident != null}" class="d-flex flex-wrap align-items-center gap-2">
+                <span class="badge text-bg-warning">SIMULATED INCIDENT</span>
+                <strong th:text="${'SIM-' + activeIncident.id() + ' · ' + activeIncident.fault()}">SIM-1</strong>
+                <span class="small" th:text="${'severity ' + @fmt.pct(activeIncident.progress(now)) + ' of full fault · started '
+                        + @fmt.ago(activeIncident.startedAt()) + ' by ' + activeIncident.startedBy() + ' · '
+                        + activeIncident.readings() + ' readings'}">progress</span>
+                <a th:if="${activeIncident.investigationId() != null}" class="small"
+                   th:href="@{/investigations/{id}(id=${activeIncident.investigationId()})}"
+                   th:text="${'investigation INV-' + activeIncident.investigationId()}">INV</a>
+                <span th:if="${activeIncident.investigationId() == null}" class="small text-secondary">an investigation starts when the fault peaks</span>
+                <form sec:authorize="hasRole('ENGINEER')" th:action="@{/incidents/{id}/stop(id=${activeIncident.id()})}" method="post" class="ms-auto">
+                    <button class="btn btn-sm btn-outline-dark" type="submit">Stop simulation</button>
+                </form>
+            </div>
+            <ul th:if="${activeIncident == null}" class="list-unstyled small mb-0">
+                <li th:each="s : ${incidents}">
+                    <span class="badge text-bg-secondary">simulated</span>
+                    <span th:text="${'SIM-' + s.id() + ' · ' + s.fault() + ' · ' + s.status() + ' · ' + @fmt.time(s.startedAt()) + ' by ' + s.startedBy()}">SIM</span>
+                    <a th:if="${s.investigationId() != null}" th:href="@{/investigations/{id}(id=${s.investigationId()})}"
+                       th:text="${'INV-' + s.investigationId()}">INV</a>
+                    <span th:if="${s.note() != null}" class="text-secondary" th:text="${'· ' + s.note()}">note</span>
+                </li>
+            </ul>
+        </div>
+    </div>
+    <details sec:authorize="hasRole('ENGINEER')" th:if="${activeIncident == null}" class="mb-3">
+        <summary class="small text-secondary">Simulate a machine incident (training and demos)</summary>
+        <form th:action="@{/machines/{code}/incidents(code=${machine.code()})}" method="post"
+              class="d-flex flex-wrap gap-2 align-items-end mt-2">
+            <div><label class="form-label small mb-0" for="incident-fault">Fault</label>
+                <select id="incident-fault" name="fault" class="form-select form-select-sm">
+                    <option th:each="f : ${incidentFaults}" th:value="${f}" th:text="${f}">FAULT</option>
+                </select></div>
+            <div><label class="form-label small mb-0" for="incident-ramp">Ramp to full severity (min)</label>
+                <input id="incident-ramp" name="rampMinutes" type="number" min="1" max="120" value="5" class="form-control form-control-sm"></div>
+            <button class="btn btn-sm btn-warning" type="submit">Start simulated incident</button>
+            <small class="text-secondary">Only for simulated machines. Readings are marked simulated; detectors, risk and an
+                automatic investigation react as to real data, and recommendations still need approval.</small>
+        </form>
+    </details>
+
+    <div class="row g-3 mb-3">
+        <div class="col-xl-8">
+            <div class="card h-100"><div class="card-body">
+                <div class="d-flex flex-wrap justify-content-between align-items-center gap-2 mb-2">
+                    <h2 class="h5 mb-0">Telemetry <span class="badge text-bg-success fw-normal">measured</span></h2>
+                    <div class="btn-group btn-group-sm" role="group" aria-label="Chart window" id="chart-window">
+                        <button type="button" class="btn btn-outline-secondary active" data-minutes="120">2 h</button>
+                        <button type="button" class="btn btn-outline-secondary" data-minutes="1440">24 h</button>
+                        <button type="button" class="btn btn-outline-secondary" data-minutes="10080">7 d</button>
+                    </div>
+                    <small class="text-secondary"><span id="chart-resolution">raw</span> · dashed lines: warning / critical limits · refreshes every 15 s</small>
+                </div>
+                <div class="row g-3" id="charts" th:attr="data-url=@{/machines/{code}/telemetry.json(code=${machine.code()})}">
+                    <div class="col-md-6" th:each="m : ${metrics}">
+                        <div class="chart-box"><canvas th:attr="data-metric=${m.name()}"></canvas></div>
+                    </div>
+                </div>
+            </div></div>
+        </div>
+        <div class="col-xl-4">
+            <div class="card mb-3"><div class="card-body">
+                <div class="d-flex justify-content-between">
+                    <h2 class="h5">Connectivity and data quality</h2>
+                    <span th:replace="~{fragments :: badge(${quality.connectivity()})}"></span>
+                </div>
+                <table class="table table-sm small mb-2">
+                    <tbody>
+                    <tr><th>Last reading</th><td th:text="${@fmt.time(quality.lastReadingAt()) + ' (' + @fmt.ago(quality.lastReadingAt()) + ')'}">t</td></tr>
+                    <tr><th>Readings, last 60 min</th><td th:text="${quality.samples()}">60</td></tr>
+                    <tr><th>Typical interval</th><td th:text="${@fmt.duration(quality.typicalInterval())}">10 s</td></tr>
+                    <tr><th>Largest gap</th><td th:text="${@fmt.duration(quality.largestGap())}">20 s</td></tr>
+                    <tr><th>Completeness</th><td th:text="${@fmt.pct(quality.completeness()) + ' (' + quality.estimatedMissing() + ' missing)'}">100%</td></tr>
+                    <tr><th>Source</th><td>
+                        <span class="badge text-bg-success" th:if="${quality.edgeReadings() > 0}" th:text="${quality.edgeReadings() + ' BAS edge'}">edge</span>
+                        <span class="badge text-bg-warning" th:if="${quality.simulatedReadings() > 0}" th:text="${quality.simulatedReadings() + ' simulated'}">sim</span>
+                    </td></tr>
+                    </tbody>
+                </table>
+                <ul class="small mb-0 text-warning" th:unless="${quality.issues().isEmpty()}">
+                    <li th:each="i : ${quality.issues()}" th:text="${i}">issue</li>
+                </ul>
+                <p class="small text-success mb-0" th:if="${quality.issues().isEmpty()}">No data-quality issues detected.</p>
+            </div></div>
+            <div class="card mb-3"><div class="card-body">
+                <h2 class="h5">Failure risk <span class="badge text-bg-info fw-normal">model prediction</span>
+                    <a class="small fw-normal" th:href="@{/analytics(machine=${machine.code()})}">history</a></h2>
+                <div th:if="${risk != null}">
+                    <div class="d-flex align-items-baseline gap-2 mb-2">
+                        <span class="display-6" th:text="${@fmt.pct(risk.probability())}">20%</span>
+                        <span th:replace="~{fragments :: badge(${risk.level()})}"></span>
+                    </div>
+                    <div class="small text-secondary mb-2">Contribution to log-odds (positive raises risk)</div>
+                    <div th:each="c : ${risk.contributions()}" class="small mb-1">
+                        <div class="d-flex justify-content-between">
+                            <span th:text="${c.label()}">label</span>
+                            <span th:text="${@fmt.num(c.logOdds(), 2)}">0.1</span>
+                        </div>
+                        <div class="contribution-bar" th:style="'width:' + ${@fmt.barWidth(c.logOdds())} + '%'"></div>
+                    </div>
+                    <div class="small text-secondary mt-2" th:text="${risk.model().algorithm() + ', hold-out AUC ' + @fmt.num(risk.model().holdoutAuc(), 3) + ', trained on ' + risk.model().trainingData()}">model</div>
+                </div>
+                <div th:unless="${predictions.isEmpty()}" class="mt-3">
+                    <div class="small text-secondary mb-1">Stored predictions (model_predictions)</div>
+                    <table class="table table-sm small mb-0">
+                        <tbody>
+                        <tr th:each="p : ${predictions}">
+                            <td class="text-nowrap" th:text="${@fmt.time(p.predictedAt())}">t</td>
+                            <td th:text="${p.trigger()}">SCHEDULED</td>
+                            <td class="text-end" th:text="${@fmt.pct(p.probability())}">10%</td>
+                            <td><span th:replace="~{fragments :: badge(${p.level()})}"></span></td>
+                        </tr>
+                        </tbody>
+                    </table>
+                </div>
+                <p th:if="${risk == null}" class="text-secondary mb-0">No telemetry yet.</p>
+            </div></div>
+            <div class="card"><div class="card-body">
+                <h2 class="h5">Trend analysis</h2>
+                <table class="table table-sm small mb-2" th:if="${analysis.hasData()}">
+                    <thead><tr><th>Channel</th><th class="text-end">Latest</th><th class="text-end">Change</th><th class="text-end">Slope/h</th><th></th></tr></thead>
+                    <tbody>
+                    <tr th:each="s : ${analysis.metrics()}">
+                        <td th:text="${s.metric().label() + ' (' + s.unit() + ')'}">x</td>
+                        <td class="text-end" th:text="${@fmt.num(s.latest(), 2)}">1</td>
+                        <td class="text-end" th:text="${@fmt.signedPct(s.changePct())}">+1%</td>
+                        <td class="text-end" th:text="${@fmt.num(s.slopePerHour(), 2)}">0</td>
+                        <td><span th:replace="~{fragments :: badge(${s.latestSeverity()})}"></span></td>
+                    </tr>
+                    </tbody>
+                </table>
+                <div class="small" th:if="${analysis.multivariate() != null}">
+                    Isolation Forest score <strong th:text="${@fmt.num(analysis.multivariate().score(), 3)}">0.5</strong>
+                    (threshold <span th:text="${@fmt.num(analysis.multivariate().threshold(), 3)}">0.6</span>):
+                    <span th:text="${analysis.multivariate().anomalous()} ? 'abnormal state' : 'normal'"
+                          th:class="${analysis.multivariate().anomalous()} ? 'text-danger fw-semibold' : 'text-success'">normal</span>
+                </div>
+            </div></div>
+        </div>
+    </div>
+
+    <div class="row g-3 mb-4">
+        <div class="col-xl-6" id="inspections">
+            <div class="card h-100"><div class="card-body">
+                <h2 class="h5">Visual inspections</h2>
+                <div sec:authorize="hasRole('ENGINEER')" class="border rounded p-2 mb-3 bg-light">
+                    <form th:action="@{/machines/{code}/inspections(code=${machine.code()})}" method="post" enctype="multipart/form-data"
+                          class="row g-2 align-items-end">
+                        <div class="col-sm-4"><label class="form-label small mb-0" for="component">Component</label>
+                            <input id="component" name="component" class="form-control form-control-sm" required maxlength="120"
+                                   placeholder="e.g. bearing housing"></div>
+                        <div class="col-sm-5"><label class="form-label small mb-0" for="image">Image (PNG/JPEG)</label>
+                            <input id="image" name="image" type="file" accept="image/png,image/jpeg,image/bmp"
+                                   class="form-control form-control-sm" required></div>
+                        <div class="col-sm-3"><button class="btn btn-sm btn-primary w-100" type="submit">Inspect</button></div>
+                    </form>
+                    <form th:action="@{/machines/{code}/inspections/sample(code=${machine.code()})}" method="post"
+                          class="row g-2 align-items-end mt-1">
+                        <div class="col-sm-4"><input name="component" class="form-control form-control-sm" value="Sample part" required></div>
+                        <div class="col-sm-5"><select name="kind" class="form-select form-select-sm">
+                            <option th:each="k : ${sampleKinds}" th:value="${k}" th:text="'Synthetic sample: ' + ${k}">GOOD</option>
+                        </select></div>
+                        <div class="col-sm-3"><button class="btn btn-sm btn-outline-primary w-100" type="submit">Try sample</button></div>
+                    </form>
+                </div>
+                <div class="row g-2">
+                    <div class="col-sm-6" th:each="i : ${inspections}">
+                        <div class="border rounded p-2 h-100">
+                            <img class="inspection-img mb-1" th:src="@{/inspections/{id}/annotated.png(id=${i.id()})}" alt="annotated inspection image">
+                            <div class="small">
+                                <span th:replace="~{fragments :: badge(${i.verdict()})}"></span>
+                                <strong th:text="${i.component()}">component</strong>
+                                <span th:text="${@fmt.pct(i.defectProbability())}">5%</span>
+                            </div>
+                            <div class="small text-secondary"
+                                 th:text="${@fmt.time(i.inspectedAt()) + ' · ' + i.inspectedBy() + ' · ' + i.inferenceMs() + ' ms'}">meta</div>
+                        </div>
+                    </div>
+                </div>
+                <p th:if="${inspections.isEmpty()}" class="text-secondary mb-0">No inspections in the last 30 days.</p>
+            </div></div>
+        </div>
+        <div class="col-xl-6">
+            <div class="card mb-3"><div class="card-body">
+                <h2 class="h5">Anomaly events, last 24 h</h2>
+                <table class="table table-sm small mb-0" th:unless="${anomalies.isEmpty()}">
+                    <thead><tr><th>Time</th><th>Detector</th><th>Severity</th><th>Message</th></tr></thead>
+                    <tbody>
+                    <tr th:each="a : ${anomalies}">
+                        <td class="text-nowrap" th:text="${@fmt.time(a.detectedAt())}">t</td>
+                        <td th:text="${a.detector()}">ENVELOPE</td>
+                        <td><span th:replace="~{fragments :: badge(${a.severity()})}"></span></td>
+                        <td th:text="${a.message()}">msg</td>
+                    </tr>
+                    </tbody>
+                </table>
+                <p th:if="${anomalies.isEmpty()}" class="text-secondary mb-0">No anomalies.</p>
+            </div></div>
+            <div class="card mb-3"><div class="card-body">
+                <h2 class="h5">Maintenance history</h2>
+                <div th:each="r : ${maintenance}" class="border rounded p-2 mb-2 small">
+                    <div class="d-flex justify-content-between">
+                        <span><span th:replace="~{fragments :: badge(${r.status()})}"></span>
+                            <span th:replace="~{fragments :: badge(${r.priority()})}"></span></span>
+                        <span class="text-secondary" th:text="${'planned ' + @fmt.time(r.plannedAt()) + ' by ' + r.plannedBy()}">planned</span>
+                    </div>
+                    <div class="mt-1" th:text="${r.action()}">action</div>
+                    <div class="text-secondary" th:if="${r.completedAt() != null}"
+                         th:text="${'Completed ' + @fmt.time(r.completedAt()) + ' by ' + r.completedBy() + (r.notes() != null ? ': ' + r.notes() : '')}">done</div>
+                    <form sec:authorize="hasRole('ENGINEER')" th:if="${r.status().name() == 'PLANNED'}"
+                          th:action="@{/maintenance/{id}/complete(id=${r.id()})}" method="post" class="d-flex gap-2 mt-2">
+                        <input type="hidden" name="returnTo" th:value="${'/machines/' + machine.code()}">
+                        <input name="notes" class="form-control form-control-sm" maxlength="2000" placeholder="Work done, parts replaced">
+                        <button class="btn btn-sm btn-outline-success text-nowrap" type="submit">Mark completed</button>
+                    </form>
+                </div>
+                <p th:if="${maintenance.isEmpty()}" class="text-secondary mb-0">No maintenance recorded. Approved recommendations appear here.</p>
+            </div></div>
+            <div class="card"><div class="card-body">
+                <h2 class="h5">Investigations</h2>
+                <ul class="list-unstyled small mb-0">
+                    <li th:each="i : ${investigations}" class="mb-1">
+                        <a th:href="@{/investigations/{id}(id=${i.id()})}" th:text="'INV-' + ${i.id()}">INV-1</a>
+                        <span th:replace="~{fragments :: badge(${i.status()})}"></span>
+                        <span th:text="${i.diagnosis()}">diag</span>
+                        <span class="text-secondary" th:text="'· ' + ${@fmt.time(i.createdAt())}">t</span>
+                    </li>
+                </ul>
+                <p th:if="${investigations.isEmpty()}" class="text-secondary mb-0">None yet.</p>
+            </div></div>
+        </div>
+    </div>
+    <div class="card mb-3" id="events"><div class="card-body">
+        <h2 class="h5">Four different kinds of event</h2>
+        <p class="small text-secondary">A sensor fault is bad data, an anomaly is unusual behaviour, a prediction is a model's
+            estimate, and only a confirmed failure means the machine actually failed.</p>
+        <div class="row g-3 small">
+            <div class="col-lg-3">
+                <div class="fw-semibold">Sensor faults <span class="badge text-bg-secondary">data quality</span></div>
+                <ul class="list-unstyled mb-0">
+                    <li th:each="f : ${sensorFaults}" th:text="${f.type() + ' · ' + f.message() + ' · ' + @fmt.ago(f.detectedAt())}">f</li>
+                    <li th:if="${sensorFaults.isEmpty()}" class="text-secondary">None in 24 h.</li>
+                </ul>
+            </div>
+            <div class="col-lg-3">
+                <div class="fw-semibold">Machine anomalies <span class="badge text-bg-info">rule-based</span></div>
+                <div th:text="${anomalies.size() + ' in 24 h'}">0</div>
+                <div class="text-secondary" th:unless="${anomalies.isEmpty()}" th:text="${anomalies.get(0).message()}">latest</div>
+            </div>
+            <div class="col-lg-3">
+                <div class="fw-semibold">Model predictions <span class="badge text-bg-info">model</span></div>
+                <div th:if="${risk != null}" th:text="${'Current risk ' + @fmt.pct(risk.probability()) + ' (' + risk.level() + '). An estimate, not a failure.'}">risk</div>
+            </div>
+            <div class="col-lg-3">
+                <div class="fw-semibold">Confirmed failures <span class="badge text-bg-dark">confirmed by a person</span></div>
+                <ul class="list-unstyled mb-0">
+                    <li th:each="f : ${failures}"
+                        th:text="${f.mode() + ' · ' + f.description() + ' · ' + f.confirmedBy() + ' ' + @fmt.time(f.occurredAt()) + (f.priorProbability() != null ? ' · predicted risk before: ' + @fmt.pct(f.priorProbability()) : '')}">f</li>
+                    <li th:if="${failures.isEmpty()}" class="text-secondary">None recorded.</li>
+                </ul>
+            </div>
+        </div>
+    </div></div>
+
+    <div class="card mb-4" id="history"><div class="card-body">
+        <div class="d-flex justify-content-between">
+            <h2 class="h5">Historical readings (latest 25)</h2>
+            <a class="small" th:href="@{/api/machines/{c}/analysis(c=${machine.code()})}">analysis JSON</a>
+        </div>
+        <div class="table-scroll">
+            <table class="table table-sm small mb-0">
+                <thead><tr><th>Time</th><th class="text-end">Temp °C</th><th class="text-end">Vibration mm/s</th>
+                    <th class="text-end">Speed rpm</th><th class="text-end">Torque N·m</th><th class="text-end">Pressure bar</th><th>Source</th></tr></thead>
+                <tbody>
+                <tr th:each="r : ${latestReadings}">
+                    <td class="text-nowrap" th:text="${@fmt.time(r.recordedAt())}">t</td>
+                    <td class="text-end" th:text="${@fmt.num(r.temperature(), 1)}">55</td>
+                    <td class="text-end" th:text="${@fmt.num(r.vibration(), 2)}">1.8</td>
+                    <td class="text-end" th:text="${@fmt.num(r.rpm(), 0)}">2400</td>
+                    <td class="text-end" th:text="${@fmt.num(r.torque(), 1)}">35</td>
+                    <td class="text-end" th:text="${@fmt.num(r.pressure(), 2)}">6</td>
+                    <td><span th:replace="~{fragments :: badge(${r.source()})}"></span></td>
+                </tr>
+                </tbody>
+            </table>
+        </div>
+    </div></div>
+</main>
+<th:block th:replace="~{fragments :: scripts}"></th:block>
+<script th:src="@{/webjars/chart.js/dist/chart.umd.min.js}"></script>
+<script th:src="@{/js/machine-charts.js}"></script>
+</body>
+</html>

@@ -1,0 +1,206 @@
+{
+  "name" : "remaining-useful-life-regressor",
+  "version" : "1.0.0",
+  "task" : "Regression: remaining useful life in cycles (capped at 125)",
+  "algorithm" : "Smile RandomForest regression, 120 trees, mtry=14",
+  "artifact" : "remaining-useful-life-regressor-v1.0.0.ser",
+  "artifactSha256" : "9435a3eb141e6a320d6ebfbea15ec92fe29f54e5cdeb40a39031947fa8e4622d",
+  "trainedAt" : "2026-11-12T09:40:05.072567Z",
+  "dataset" : {
+    "name" : "NASA C-MAPSS FD001 (turbofan run-to-failure simulation)",
+    "source" : "NASA Prognostics Center of Excellence data repository",
+    "licence" : "US Government open data",
+    "version" : "cmapss/train_FD001.txt@sha256:963b5e22825b34d8,cmapss/test_FD001.txt@sha256:3cda7109ce17bafb,cmapss/RUL_FD001.txt@sha256:a19c8ec94931949d",
+    "trainRows" : 16453,
+    "validationRows" : 4178,
+    "testRows" : 100,
+    "splitStrategy" : "by engine unit 80/20, seed 42; official test set"
+  },
+  "features" : [ {
+    "name" : "cycle",
+    "unit" : "cycles",
+    "definition" : "Operating cycles since the start of the record"
+  }, {
+    "name" : "s2",
+    "unit" : "sensor units",
+    "definition" : "Sensor 2 at the current cycle"
+  }, {
+    "name" : "s2_mean10",
+    "unit" : "sensor units",
+    "definition" : "Sensor 2 mean over the last 10 cycles"
+  }, {
+    "name" : "s2_slope10",
+    "unit" : "units/cycle",
+    "definition" : "Sensor 2 least-squares slope over the last 10 cycles"
+  }, {
+    "name" : "s3",
+    "unit" : "sensor units",
+    "definition" : "Sensor 3 at the current cycle"
+  }, {
+    "name" : "s3_mean10",
+    "unit" : "sensor units",
+    "definition" : "Sensor 3 mean over the last 10 cycles"
+  }, {
+    "name" : "s3_slope10",
+    "unit" : "units/cycle",
+    "definition" : "Sensor 3 least-squares slope over the last 10 cycles"
+  }, {
+    "name" : "s4",
+    "unit" : "sensor units",
+    "definition" : "Sensor 4 at the current cycle"
+  }, {
+    "name" : "s4_mean10",
+    "unit" : "sensor units",
+    "definition" : "Sensor 4 mean over the last 10 cycles"
+  }, {
+    "name" : "s4_slope10",
+    "unit" : "units/cycle",
+    "definition" : "Sensor 4 least-squares slope over the last 10 cycles"
+  }, {
+    "name" : "s7",
+    "unit" : "sensor units",
+    "definition" : "Sensor 7 at the current cycle"
+  }, {
+    "name" : "s7_mean10",
+    "unit" : "sensor units",
+    "definition" : "Sensor 7 mean over the last 10 cycles"
+  }, {
+    "name" : "s7_slope10",
+    "unit" : "units/cycle",
+    "definition" : "Sensor 7 least-squares slope over the last 10 cycles"
+  }, {
+    "name" : "s8",
+    "unit" : "sensor units",
+    "definition" : "Sensor 8 at the current cycle"
+  }, {
+    "name" : "s8_mean10",
+    "unit" : "sensor units",
+    "definition" : "Sensor 8 mean over the last 10 cycles"
+  }, {
+    "name" : "s8_slope10",
+    "unit" : "units/cycle",
+    "definition" : "Sensor 8 least-squares slope over the last 10 cycles"
+  }, {
+    "name" : "s9",
+    "unit" : "sensor units",
+    "definition" : "Sensor 9 at the current cycle"
+  }, {
+    "name" : "s9_mean10",
+    "unit" : "sensor units",
+    "definition" : "Sensor 9 mean over the last 10 cycles"
+  }, {
+    "name" : "s9_slope10",
+    "unit" : "units/cycle",
+    "definition" : "Sensor 9 least-squares slope over the last 10 cycles"
+  }, {
+    "name" : "s11",
+    "unit" : "sensor units",
+    "definition" : "Sensor 11 at the current cycle"
+  }, {
+    "name" : "s11_mean10",
+    "unit" : "sensor units",
+    "definition" : "Sensor 11 mean over the last 10 cycles"
+  }, {
+    "name" : "s11_slope10",
+    "unit" : "units/cycle",
+    "definition" : "Sensor 11 least-squares slope over the last 10 cycles"
+  }, {
+    "name" : "s12",
+    "unit" : "sensor units",
+    "definition" : "Sensor 12 at the current cycle"
+  }, {
+    "name" : "s12_mean10",
+    "unit" : "sensor units",
+    "definition" : "Sensor 12 mean over the last 10 cycles"
+  }, {
+    "name" : "s12_slope10",
+    "unit" : "units/cycle",
+    "definition" : "Sensor 12 least-squares slope over the last 10 cycles"
+  }, {
+    "name" : "s13",
+    "unit" : "sensor units",
+    "definition" : "Sensor 13 at the current cycle"
+  }, {
+    "name" : "s13_mean10",
+    "unit" : "sensor units",
+    "definition" : "Sensor 13 mean over the last 10 cycles"
+  }, {
+    "name" : "s13_slope10",
+    "unit" : "units/cycle",
+    "definition" : "Sensor 13 least-squares slope over the last 10 cycles"
+  }, {
+    "name" : "s14",
+    "unit" : "sensor units",
+    "definition" : "Sensor 14 at the current cycle"
+  }, {
+    "name" : "s14_mean10",
+    "unit" : "sensor units",
+    "definition" : "Sensor 14 mean over the last 10 cycles"
+  }, {
+    "name" : "s14_slope10",
+    "unit" : "units/cycle",
+    "definition" : "Sensor 14 least-squares slope over the last 10 cycles"
+  }, {
+    "name" : "s15",
+    "unit" : "sensor units",
+    "definition" : "Sensor 15 at the current cycle"
+  }, {
+    "name" : "s15_mean10",
+    "unit" : "sensor units",
+    "definition" : "Sensor 15 mean over the last 10 cycles"
+  }, {
+    "name" : "s15_slope10",
+    "unit" : "units/cycle",
+    "definition" : "Sensor 15 least-squares slope over the last 10 cycles"
+  }, {
+    "name" : "s17",
+    "unit" : "sensor units",
+    "definition" : "Sensor 17 at the current cycle"
+  }, {
+    "name" : "s17_mean10",
+    "unit" : "sensor units",
+    "definition" : "Sensor 17 mean over the last 10 cycles"
+  }, {
+    "name" : "s17_slope10",
+    "unit" : "units/cycle",
+    "definition" : "Sensor 17 least-squares slope over the last 10 cycles"
+  }, {
+    "name" : "s20",
+    "unit" : "sensor units",
+    "definition" : "Sensor 20 at the current cycle"
+  }, {
+    "name" : "s20_mean10",
+    "unit" : "sensor units",
+    "definition" : "Sensor 20 mean over the last 10 cycles"
+  }, {
+    "name" : "s20_slope10",
+    "unit" : "units/cycle",
+    "definition" : "Sensor 20 least-squares slope over the last 10 cycles"
+  }, {
+    "name" : "s21",
+    "unit" : "sensor units",
+    "definition" : "Sensor 21 at the current cycle"
+  }, {
+    "name" : "s21_mean10",
+    "unit" : "sensor units",
+    "definition" : "Sensor 21 mean over the last 10 cycles"
+  }, {
+    "name" : "s21_slope10",
+    "unit" : "units/cycle",
+    "definition" : "Sensor 21 least-squares slope over the last 10 cycles"
+  } ],
+  "decisionThreshold" : null,
+  "validationMetrics" : {
+    "mae" : 11.424850971782996,
+    "rmse" : 15.946201111493004,
+    "r2" : 0.85326444120929
+  },
+  "testMetrics" : {
+    "mae" : 13.711369928066585,
+    "rmse" : 18.68278735885263,
+    "r2" : 0.7978732479301833,
+    "nasa_score" : 703.9875994433668
+  },
+  "limitations" : [ "Trained on one operating condition and one fault mode (HPC degradation) of a simulated turbofan.", "Predictions above 125 cycles are not meaningful because the label is capped.", "Input sensors must use the C-MAPSS sensor definitions; plant machines need their own training data." ],
+  "featureImportance" : null
+}

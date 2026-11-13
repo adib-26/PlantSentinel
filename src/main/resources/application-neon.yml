@@ -1,0 +1,51 @@
+# Neon PostgreSQL (free plan). Credentials are never committed:
+#   - `neon init` writes DATABASE_URL / DATABASE_URL_UNPOOLED to .env.local (git-ignored), which
+#     NeonEnvironmentPostProcessor converts to the JDBC settings below, or
+#   - set DATABASE_URL (jdbc:postgresql://...?sslmode=require), DATABASE_USERNAME and DATABASE_PASSWORD yourself.
+spring:
+  datasource:
+    url: ${DATABASE_URL}
+    username: ${DATABASE_USERNAME}
+    password: ${DATABASE_PASSWORD}
+    hikari:
+      # Small pool, no idle connections: lets Neon scale compute to zero between uses.
+      maximum-pool-size: 3
+      minimum-idle: 0
+      idle-timeout: 60000
+      max-lifetime: 600000
+      connection-timeout: 20000
+      keepalive-time: 0
+  thymeleaf:
+    cache: true
+  flyway:
+    # db/vendor/postgresql/V100 is numbered above the shared migrations, so a database that already has V100 must
+    # still accept later shared migrations such as V13.
+    out-of-order: true
+
+bas:
+  # Background jobs pause after 20 minutes without anyone using the app, so an unattended laptop
+  # does not spend the free plan's 100 CU-hours per month.
+  idle-pause: 20m
+  telemetry:
+    retention: 3d
+    rollup-retention: 90d
+  simulator:
+    enabled: ${BAS_SIMULATOR_ENABLED:true}
+    interval: 30s
+  security:
+    users:
+      - username: ${BAS_ADMIN_USER:admin}
+        password: ${BAS_ADMIN_PASSWORD:}
+        roles: [ADMIN, ENGINEER, VIEWER]
+      - username: ${BAS_ENGINEER_USER:engineer}
+        password: ${BAS_ENGINEER_PASSWORD:}
+        roles: [ENGINEER, VIEWER]
+      - username: ${BAS_REVIEWER_USER:reviewer}
+        password: ${BAS_REVIEWER_PASSWORD:}
+        roles: [ENGINEER, VIEWER]
+      - username: ${BAS_TECHNICIAN_USER:technician}
+        password: ${BAS_TECHNICIAN_PASSWORD:}
+        roles: [TECHNICIAN, VIEWER]
+      - username: ${BAS_VIEWER_USER:viewer}
+        password: ${BAS_VIEWER_PASSWORD:}
+        roles: [VIEWER]

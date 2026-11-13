@@ -1,0 +1,24 @@
+.neon
+.env.local
+
+# Build output and local runtime data
+target/
+data/
+*.log
+
+# Python virtual environment for the ML scripts
+ml/.venv/
+
+# Downloaded datasets are not redistributed (see ml/datasets/README.md)
+ml/data/
+
+# Local secrets (never commit). .env.example holds placeholders only.
+.env
+.env.*
+!.env.example
+
+# IDE
+.idea/
+*.iml
+.vscode/
+.DS_Store
