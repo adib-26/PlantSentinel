@@ -160,6 +160,12 @@ Train the ML models: `ml/run-ml-lab.sh` (see [ml/README.md](ml/README.md)).
 `./mvnw test` runs 141 unit and integration tests (see [docs/testing.md](docs/testing.md) for the test matrix and failure scenarios), including the full engineer journey, the example agent investigation through the
 real tool callbacks, agent policy, security chains, ML metrics and the trained-model API. `./mvnw verify` adds PostgreSQL Testcontainers tests (requires Docker).
 
+## BAS licensing
+
+The [BAS repository](https://github.com/RealTimeLogic/BAS) offers GPLv2 and commercial licensing options. If you distribute a derivative BAS application, understand the GPLv2 obligations, including the treatment of application content hosted by a derivative product. For a public portfolio, keep your integration separate and review the licence before distributing a combined package.
+
+PlantSentinel does not vendor BAS or Mako Server. `edge/build-mako-macos.sh` downloads the official sources into a local cache and builds them there. The Lua edge app in `edge/mako/bas-edge/` stays separate from those sources, and the Spring Boot application does not link against BAS.
+
 ## Free-plan safeguards
 
 Small Hikari pool with no idle connections, background jobs that pause after 20 minutes without use (so Neon scales

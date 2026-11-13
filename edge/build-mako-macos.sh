@@ -1,5 +1,7 @@
 #!/usr/bin/env bash
 # Builds Mako Server on macOS from the official BAS sources (Real Time Logic publishes no macOS binary).
+# BAS offers GPLv2 and commercial licensing options. This script downloads those sources into a local cache
+# and does not vendor them. Review the BAS licence before distributing a combined package.
 #
 # Upstream's LinuxBuild.sh fails with current Apple clang: BAS.c defines a static function `getmode`, which clashes
 # with getmode() declared in the macOS SDK's <unistd.h>. This script runs the upstream build, renames that one
