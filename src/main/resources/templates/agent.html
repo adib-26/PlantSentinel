@@ -1,0 +1,53 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org">
+<head th:replace="~{fragments :: head('Agent activity')}"></head>
+<body>
+<nav th:replace="~{fragments :: nav}"></nav>
+<main class="container-fluid px-4">
+    <h1 class="h3 mb-1">Agent activity</h1>
+    <p class="text-secondary">Every MCP session Kiro opened and every tool it called (agent_sessions, agent_tool_audit).
+        The agent can read data, run investigations and propose recommendations. It cannot approve them.</p>
+    <div class="row g-3">
+        <div class="col-xl-4">
+            <div class="card"><div class="card-body">
+                <h2 class="h5">Sessions</h2>
+                <table class="table table-sm small mb-0">
+                    <thead><tr><th>Client</th><th>Started</th><th>Last seen</th><th class="text-end">Calls</th></tr></thead>
+                    <tbody>
+                    <tr th:each="s : ${sessions}">
+                        <td th:text="${(s.clientName() ?: 'unknown') + ' ' + (s.clientVersion() ?: '')}">kiro</td>
+                        <td class="text-nowrap" th:text="${@fmt.time(s.startedAt())}">t</td>
+                        <td class="text-nowrap" th:text="${@fmt.ago(s.lastSeenAt())}">t</td>
+                        <td class="text-end" th:text="${s.toolCalls()}">3</td>
+                    </tr>
+                    <tr th:if="${sessions.isEmpty()}"><td colspan="4" class="text-secondary">No agent sessions yet.</td></tr>
+                    </tbody>
+                </table>
+            </div></div>
+        </div>
+        <div class="col-xl-8">
+            <div class="card"><div class="card-body">
+                <h2 class="h5">Tool calls</h2>
+                <table class="table table-sm small mb-0">
+                    <thead><tr><th>#</th><th>Time</th><th>Tool</th><th>Arguments</th><th>Status</th><th class="text-end">ms</th></tr></thead>
+                    <tbody>
+                    <tr th:each="c : ${calls}">
+                        <td th:text="${c.id()}">1</td>
+                        <td class="text-nowrap" th:text="${@fmt.time(c.calledAt())}">t</td>
+                        <td><code th:text="${mcpNames.get(c.toolName()) ?: c.toolName()}">tool</code>
+                            <div class="text-secondary" th:text="${'Java: ' + c.toolName()}">java</div></td>
+                        <td class="text-break"><code class="small" th:text="${c.argumentsJson()}">{}</code></td>
+                        <td><span class="badge" th:classappend="${c.status() == 'SUCCESS'} ? 'text-bg-success' : (${c.status() == 'ERROR'} ? 'text-bg-danger' : 'text-bg-secondary')"
+                                  th:text="${c.status()}" th:title="${c.errorMessage()}">OK</span></td>
+                        <td class="text-end" th:text="${c.durationMs()}">5</td>
+                    </tr>
+                    <tr th:if="${calls.isEmpty()}"><td colspan="6" class="text-secondary">No tool calls yet. Connect Kiro to /mcp.</td></tr>
+                    </tbody>
+                </table>
+            </div></div>
+        </div>
+    </div>
+</main>
+<th:block th:replace="~{fragments :: scripts}"></th:block>
+</body>
+</html>

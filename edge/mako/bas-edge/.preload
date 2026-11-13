@@ -1,0 +1,120 @@
+--[[
+BAS Intelligence edge node for Mako Server (Barracuda App Server).
+
+Runs on a gateway beside the machine. Every interval it reads sensors, appends the reading to a
+bounded store-and-forward queue, and posts the queue to BAS Intelligence as one JSON batch over
+HTTP(S) with the X-API-Key header. If the server is unreachable, readings stay queued (up to
+MAX_QUEUE) and are sent when the connection returns, so short outages do not lose data.
+
+Configure with environment variables before starting Mako Server:
+  BAS_URL            default http://localhost:8080/api/edge/telemetry
+  BAS_EDGE_API_KEY   shared edge key (must match the server's BAS_EDGE_API_KEY)
+  BAS_GATEWAY_ID     default mako-edge-01
+  BAS_MACHINES       comma-separated machine codes, default CONV-04
+  BAS_INTERVAL_MS    default 10000
+
+Start:  mako -l::edge/mako/bas-edge
+Status: http://localhost:<mako-port>/   (index.lsp)
+]]
+
+local sensors = io:dofile(".lua/sensors.lua", app)
+
+local cfg = {
+   url = os.getenv("BAS_URL") or "http://localhost:8080/api/edge/telemetry",
+   key = os.getenv("BAS_EDGE_API_KEY") or "demo-edge-key-change-me",
+   gateway = os.getenv("BAS_GATEWAY_ID") or "mako-edge-01",
+   interval = tonumber(os.getenv("BAS_INTERVAL_MS") or "10000"),
+   machines = {},
+}
+for code in (os.getenv("BAS_MACHINES") or "CONV-04"):gmatch("[^,%s]+") do
+   table.insert(cfg.machines, code)
+end
+
+local MAX_QUEUE = 500   -- server accepts at most 500 readings per batch
+local seq = 0           -- with the gateway id and time, makes every reading's eventId unique
+local queue = {}
+local busy = false
+
+-- Shared with index.lsp
+app.status = { sent = 0, failed = 0, dropped = 0, queued = 0, lastStatus = nil, lastError = nil, lastSentAt = nil }
+app.cfg = cfg
+
+local function enqueue(reading)
+   if #queue >= MAX_QUEUE then
+      table.remove(queue, 1) -- drop the oldest reading
+      app.status.dropped = app.status.dropped + 1
+   end
+   table.insert(queue, reading)
+end
+
+-- Runs in the server thread pool because the HTTP client uses blocking sockets.
+local function flush()
+   if #queue == 0 then busy = false return end
+   local batch = queue
+   queue = {}
+   local body = ba.json.encode({ gatewayId = cfg.gateway, readings = batch })
+   local http = require"httpc".create()
+   local ok, err = http:request{
+      url = cfg.url,
+      method = "POST",
+      size = #body,
+      header = { ["Content-Type"] = "application/json", ["X-API-Key"] = cfg.key },
+   }
+   local status
+   if ok then
+      ok, err = http:write(body)
+      if ok then status = http:status() end
+   end
+   http:close()
+   app.status.lastStatus = status
+   if status == 202 then
+      app.status.sent = app.status.sent + #batch
+      app.status.lastSentAt = os.date("!%Y-%m-%dT%H:%M:%SZ")
+      app.status.lastError = nil
+   elseif status and status >= 400 and status < 500 then
+      -- Rejected (bad key, unknown machine, invalid data): retrying will not help.
+      app.status.failed = app.status.failed + #batch
+      app.status.lastError = "server rejected batch with HTTP " .. status
+      trace("BAS edge:", app.status.lastError)
+   else
+      -- Network error or 5xx: put the batch back in front of anything queued since.
+      for i = #queue, 1, -1 do table.insert(batch, queue[i]) end
+      queue = {}
+      for _, r in ipairs(batch) do enqueue(r) end
+      app.status.lastError = tostring(err or status)
+      trace("BAS edge: send failed, will retry:", app.status.lastError)
+   end
+   app.status.queued = #queue
+   busy = false
+end
+
+local function tick()
+   local now = os.date("!%Y-%m-%dT%H:%M:%SZ")
+   for _, code in ipairs(cfg.machines) do
+      local ok, r = pcall(sensors.read, code)
+      if ok and r then
+         seq = seq + 1
+         -- eventId lets the server drop a reading it already stored if a batch is resent after a lost response
+         enqueue({ machineCode = code, eventId = string.format("%s-%d-%d", cfg.gateway, os.time(), seq),
+                   timestamp = now, temperature = r.temperature, vibration = r.vibration,
+                   rpm = r.rpm, torque = r.torque, pressure = r.pressure })
+      else
+         trace("BAS edge: sensor read failed for", code, r)
+      end
+   end
+   app.status.queued = #queue
+   if not busy then
+      busy = true
+      ba.thread.run(flush)
+   end
+   return true -- keep the timer running
+end
+
+local timer = ba.timer(tick)
+timer:set(cfg.interval)
+trace(string.format("BAS edge %s posting %d machine(s) to %s every %d ms",
+   cfg.gateway, #cfg.machines, cfg.url, cfg.interval))
+
+function onunload()
+   timer:cancel()
+end

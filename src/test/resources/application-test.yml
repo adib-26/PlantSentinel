@@ -1,0 +1,47 @@
+spring:
+  datasource:
+    url: jdbc:h2:mem:bas-test;MODE=PostgreSQL;DATABASE_TO_LOWER=TRUE;DEFAULT_NULL_ORDERING=HIGH;DB_CLOSE_DELAY=-1
+    username: sa
+    password: ""
+
+logging:
+  file:
+    name: target/test-logs/bas-intelligence.json
+
+bas:
+  data-dir: ./target/test-data
+  security:
+    edge-api-key: test-edge-key
+    agent-api-key: test-agent-key
+    users:
+      - username: admin
+        password: admin-pw
+        roles: [ADMIN, ENGINEER, VIEWER]
+      - username: engineer
+        password: engineer-pw
+        roles: [ENGINEER, VIEWER]
+      - username: engineer2
+        password: engineer2-pw
+        roles: [ENGINEER, VIEWER]
+      - username: technician
+        password: technician-pw
+        roles: [TECHNICIAN, VIEWER]
+      - username: viewer
+        password: viewer-pw
+        roles: [VIEWER]
+  simulator:
+    enabled: false
+  # Tests advance simulated incidents explicitly instead of on a 10 s timer.
+  incidents:
+    scheduler-enabled: false
+  demo:
+    seed: false
+  risk:
+    training-samples: 2000
+  # Many test classes share one application context and user names, so the limits are high here;
+  # scenarios/AiRateLimitIntegrationTest lowers them for its own context.
+  rate-limit:
+    investigations-per-minute: 10000
+    inspections-per-minute: 10000
+    predictions-per-minute: 10000
+    searches-per-minute: 10000

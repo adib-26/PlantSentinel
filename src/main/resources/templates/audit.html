@@ -1,0 +1,25 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org">
+<head th:replace="~{fragments :: head('Audit log')}"></head>
+<body>
+<nav th:replace="~{fragments :: nav}"></nav>
+<main class="container-fluid px-4">
+    <h1 class="h3 mb-3">Audit log</h1>
+    <div class="card"><div class="card-body">
+        <table class="table table-sm small mb-0">
+            <thead><tr><th>Time</th><th>Actor</th><th>Action</th><th>Target</th><th>Detail</th></tr></thead>
+            <tbody>
+            <tr th:each="e : ${entries}">
+                <td class="text-nowrap" th:text="${@fmt.time(e.occurredAt())}">t</td>
+                <td th:text="${e.actor()}">actor</td>
+                <td th:text="${e.action()}">action</td>
+                <td th:text="${e.target()}">target</td>
+                <td th:text="${e.detail()}">detail</td>
+            </tr>
+            </tbody>
+        </table>
+    </div></div>
+</main>
+<th:block th:replace="~{fragments :: scripts}"></th:block>
+</body>
+</html>

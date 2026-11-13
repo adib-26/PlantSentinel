@@ -1,0 +1,15 @@
+{
+  "name": "process-failure-classifier",
+  "version": "9.9.9",
+  "task": "test card whose artifact file is missing",
+  "algorithm": "none",
+  "artifact": "process-failure-classifier-v9.9.9.ser",
+  "artifactSha256": "0000000000000000000000000000000000000000000000000000000000000000",
+  "trainedAt": "2026-01-01T00:00:00Z",
+  "dataset": {"name": "none", "source": "none", "licence": "none", "version": "none", "trainRows": 0, "validationRows": 0, "testRows": 0, "splitStrategy": "none"},
+  "features": [],
+  "decisionThreshold": 0.5,
+  "validationMetrics": {},
+  "testMetrics": {},
+  "limitations": []
+}

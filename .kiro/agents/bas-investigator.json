@@ -1,0 +1,45 @@
+{
+  "name": "bas-investigator",
+  "description": "BAS Intelligence maintenance investigator. Uses only the BAS Intelligence MCP tools: reads machine data, writes reports and proposes maintenance drafts that an engineer must approve.",
+  "prompt": "file://../steering/machine-investigation-playbook.md",
+  "mcpServers": {
+    "bas-intelligence": {
+      "url": "http://localhost:8080/mcp",
+      "headers": {
+        "X-API-Key": "${BAS_AGENT_API_KEY}"
+      },
+      "timeout": 60000
+    }
+  },
+  "includeMcpJson": false,
+  "tools": [
+    "@bas-intelligence/*"
+  ],
+  "permissions": {
+    "rules": [
+      {
+        "capability": "mcp",
+        "match": [
+          "bas-intelligence/machine_*",
+          "bas-intelligence/maintenance_search_manual"
+        ],
+        "effect": "allow"
+      },
+      {
+        "capability": "mcp",
+        "match": [
+          "bas-intelligence/maintenance_generate_report"
+        ],
+        "effect": "allow"
+      },
+      {
+        "capability": "mcp",
+        "match": [
+          "bas-intelligence/maintenance_create_draft"
+        ],
+        "effect": "ask"
+      }
+    ]
+  },
+  "welcomeMessage": "Ask me to investigate a machine, e.g. \"Why is machine CNC-01 showing a high failure risk?\""
+}

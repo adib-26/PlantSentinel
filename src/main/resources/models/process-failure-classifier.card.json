@@ -1,0 +1,100 @@
+{
+  "name" : "process-failure-classifier",
+  "version" : "1.0.0",
+  "task" : "Binary classification: will this machining process fail?",
+  "algorithm" : "Smile GradientTreeBoost, 300 trees, depth ≤ 6, shrinkage 0.05",
+  "artifact" : "process-failure-classifier-v1.0.0.ser",
+  "artifactSha256" : "4a41506a741271e9205baf16afe65269cc983e9097f51db07de2c019cd2714d9",
+  "trainedAt" : "2026-11-12T09:39:50.238156Z",
+  "dataset" : {
+    "name" : "AI4I 2020 Predictive Maintenance",
+    "source" : "https://doi.org/10.24432/C5HS5C",
+    "licence" : "CC BY 4.0",
+    "version" : "ai4i/ai4i2020.csv@sha256:dc6630cd9b1f0f85",
+    "trainRows" : 6000,
+    "validationRows" : 2000,
+    "testRows" : 2000,
+    "splitStrategy" : "stratified random 60/20/20, seed 42"
+  },
+  "features" : [ {
+    "name" : "type_l",
+    "unit" : "0/1",
+    "definition" : "Product quality variant is L (low)"
+  }, {
+    "name" : "type_m",
+    "unit" : "0/1",
+    "definition" : "Product quality variant is M (medium); H is the reference level"
+  }, {
+    "name" : "air_temp_k",
+    "unit" : "K",
+    "definition" : "Air temperature"
+  }, {
+    "name" : "process_temp_k",
+    "unit" : "K",
+    "definition" : "Process temperature"
+  }, {
+    "name" : "temp_diff_k",
+    "unit" : "K",
+    "definition" : "Process minus air temperature (heat-dissipation margin)"
+  }, {
+    "name" : "rpm",
+    "unit" : "rpm",
+    "definition" : "Rotational speed"
+  }, {
+    "name" : "torque_nm",
+    "unit" : "N·m",
+    "definition" : "Torque"
+  }, {
+    "name" : "tool_wear_min",
+    "unit" : "min",
+    "definition" : "Accumulated tool wear"
+  }, {
+    "name" : "power_w",
+    "unit" : "W",
+    "definition" : "Mechanical power = torque × rpm × 2π / 60"
+  }, {
+    "name" : "strain_min_nm",
+    "unit" : "min·N·m",
+    "definition" : "Tool wear × torque (overstrain indicator)"
+  } ],
+  "decisionThreshold" : 0.5844348009210585,
+  "validationMetrics" : {
+    "precision" : 0.9423076923076923,
+    "recall" : 0.7205882352941176,
+    "f1" : 0.8166666666666668,
+    "roc_auc" : 0.9744093289489709,
+    "pr_auc" : 0.8479274565232359,
+    "accuracy" : 0.989,
+    "false_alarm_rate" : 0.0015527950310559005,
+    "tp" : 49.0,
+    "fp" : 3.0,
+    "tn" : 1929.0,
+    "fn" : 19.0
+  },
+  "testMetrics" : {
+    "precision" : 0.9322033898305084,
+    "recall" : 0.8088235294117647,
+    "f1" : 0.8661417322834646,
+    "roc_auc" : 0.9822341980270369,
+    "pr_auc" : 0.9016747919597365,
+    "accuracy" : 0.9915,
+    "false_alarm_rate" : 0.002070393374741201,
+    "tp" : 55.0,
+    "fp" : 4.0,
+    "tn" : 1928.0,
+    "fn" : 13.0
+  },
+  "limitations" : [ "AI4I 2020 is itself a synthetic dataset; real plant data will have different failure physics.", "Predicts process failure for a milling operation (tool wear, heat dissipation, power, overstrain).", "Decision threshold was tuned on the validation split to maximise F1." ],
+  "featureImportance" : {
+    "strain_min_nm" : 0.31894564335450465,
+    "rpm" : 0.26747784404234043,
+    "power_w" : 0.1838876624704769,
+    "temp_diff_k" : 0.08357237796951561,
+    "torque_nm" : 0.07021999958522682,
+    "tool_wear_min" : 0.04945946643976532,
+    "process_temp_k" : 0.008942256232351512,
+    "air_temp_k" : 0.006623260556240963,
+    "type_m" : 0.005563963332961373,
+    "type_l" : 0.0053075260166163245
+  }
+}

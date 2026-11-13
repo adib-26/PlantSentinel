@@ -1,0 +1,142 @@
+spring:
+  application:
+    name: bas-intelligence
+  mvc:
+    problemdetails:
+      enabled: true
+  profiles:
+    # "demo" runs fully offline (embedded H2 file DB, seeded machines, simulator).
+    # Use SPRING_PROFILES_ACTIVE=neon to run against Neon PostgreSQL.
+    default: demo
+  threads:
+    virtual:
+      enabled: true
+  servlet:
+    multipart:
+      max-file-size: 10MB
+      max-request-size: 12MB
+  flyway:
+    # Shared migrations plus engine-specific ones (db/vendor/postgresql adds full-text search).
+    locations: classpath:db/migration,classpath:db/vendor/{vendor}
+  thymeleaf:
+    cache: false
+  ai:
+    mcp:
+      server:
+        name: bas-intelligence
+        version: 0.1.0
+        type: SYNC
+        protocol: STREAMABLE
+        request-timeout: 45s
+        instructions: >
+          BAS Intelligence maintenance investigator. Load the investigate_machine prompt. Order:
+          machine_get_status, machine_get_telemetry, machine_detect_anomaly, machine_get_failure_prediction,
+          machine_get_history, machine_get_specifications, maintenance_search_manual, then
+          maintenance_generate_report, then offer maintenance_create_draft. Every result is labelled MEASURED,
+          RULE_BASED, MODEL_PREDICTION, DOCUMENTED or AI_INTERPRETATION; keep them separate and cite manual
+          passages. You can only propose; an engineer approves. No tool changes machine settings or controls equipment.
+        streamable-http:
+          mcp-endpoint: /mcp
+
+server:
+  port: 8080
+  error:
+    include-stacktrace: never
+  shutdown: graceful
+
+management:
+  endpoints:
+    web:
+      exposure:
+        # prometheus appears once io.micrometer:micrometer-registry-prometheus is added (see docs/monitoring.md)
+        include: health,info,metrics,monitoring,prometheus
+  endpoint:
+    health:
+      probes:
+        enabled: true
+  metrics:
+    tags:
+      application: bas-intelligence
+    distribution:
+      # In-process percentiles (no Prometheus needed), shown in /actuator/metrics and /actuator/monitoring.
+      percentiles:
+        http.server.requests: 0.5,0.95,0.99
+        bas.inference: 0.5,0.95,0.99
+        bas.agent.tool.duration: 0.5,0.95,0.99
+        bas.rag.search.duration: 0.5,0.95,0.99
+        bas.telemetry.ingest.duration: 0.5,0.95,0.99
+      # Latency buckets for a later Prometheus/Grafana setup (cheap: fixed bucket counts).
+      slo:
+        http.server.requests: 50ms,100ms,250ms,500ms,1s,2s,5s
+        bas.agent.tool.duration: 100ms,500ms,1s,2s,5s,10s,30s
+
+springdoc:
+  swagger-ui:
+    path: /swagger-ui.html
+  paths-to-match: /api/**
+
+bas:
+  data-dir: ./data
+  idle-pause: 30m
+  security:
+    # Keys for machine-to-machine access. Set via environment variables.
+    edge-api-key: ${BAS_EDGE_API_KEY:}
+    agent-api-key: ${BAS_AGENT_API_KEY:}
+    users:
+      - username: ${BAS_ADMIN_USER:admin}
+        password: ${BAS_ADMIN_PASSWORD:}
+        roles: [ADMIN, ENGINEER, VIEWER]
+      - username: ${BAS_ENGINEER_USER:engineer}
+        password: ${BAS_ENGINEER_PASSWORD:}
+        roles: [ENGINEER, VIEWER]
+      - username: ${BAS_VIEWER_USER:viewer}
+        password: ${BAS_VIEWER_PASSWORD:}
+        roles: [VIEWER]
+  telemetry:
+    retention: 7d
+    rollup-retention: 90d
+    analysis-window: 2h
+    zscore-threshold: 4.0
+    baseline-size: 60
+  simulator:
+    enabled: ${BAS_SIMULATOR_ENABLED:true}
+    interval: 10s
+  demo:
+    seed: ${BAS_DEMO_SEED:true}
+    history: 3h
+  vision:
+    model-path: classpath:models/defect-detector.onnx
+    defect-threshold: 0.5
+  agent:
+    record-tools-enabled: true
+    read-tool-timeout: 10s
+    record-tool-timeout: 30s
+    max-argument-chars: 8000
+    calls-per-minute: 60
+  # Per-user limits for expensive AI endpoints (requests per minute; bursts up to the same number). 429 + Retry-After.
+  rate-limit:
+    enabled: true
+    investigations-per-minute: 10
+    inspections-per-minute: 20
+    predictions-per-minute: 60
+    searches-per-minute: 60
+  risk:
+    training-samples: 4000
+    random-seed: 42
+    prediction-interval: 15m
+
+logging:
+  level:
+    com.basintelligence: INFO
+  # Console stays human-readable. The file is structured JSON (Elastic Common Schema), one object per line with
+  # requestId and user from the MDC, rotated at 10 MB, at most 100 MB on disk. Set LOG_FILE= (empty) to disable.
+  file:
+    name: ${LOG_FILE:${bas.data-dir}/logs/bas-intelligence.json}
+  structured:
+    format:
+      file: ecs
+  logback:
+    rollingpolicy:
+      max-file-size: 10MB
+      max-history: 7
+      total-size-cap: 100MB

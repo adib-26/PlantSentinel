@@ -1,0 +1,189 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org" xmlns:sec="http://www.thymeleaf.org/extras/spring-security">
+<head th:replace="~{fragments :: head('INV-' + ${view.investigation().id()})}"></head>
+<body th:with="inv=${view.investigation()}, m=${view.machine()}">
+<nav th:replace="~{fragments :: nav}"></nav>
+<main class="container-fluid px-4">
+    <div th:replace="~{fragments :: flash}"></div>
+
+    <div class="d-flex flex-wrap justify-content-between align-items-start mb-3 gap-2">
+        <div>
+            <h1 class="h3 mb-0">
+                <span th:text="'INV-' + ${inv.id()}">INV-1</span>
+                <span th:replace="~{fragments :: badge(${inv.status()})}"></span>
+                <span th:if="${inv.createdViaToolCall() != null}" class="badge text-bg-warning">Kiro via MCP</span>
+            </h1>
+            <div>
+                <a th:href="@{/machines/{code}(code=${m.code()})}" th:text="${m.code()}">CNC-01</a>
+                <span class="text-secondary" th:text="${'· ' + m.name() + ' · opened ' + @fmt.time(inv.createdAt()) + ' by ' + inv.requestedBy()}">meta</span>
+            </div>
+            <div th:if="${inv.question() != null}" class="mt-1 fs-5"><em th:text="'“' + ${inv.question()} + '”'">question</em></div>
+        </div>
+        <div class="text-end">
+            <div class="small text-secondary">Diagnosis <span class="badge text-bg-info">rule-based</span></div>
+            <div class="fw-semibold" th:text="${inv.diagnosis()}">diag</div>
+            <div th:if="${inv.riskLevel() != null}">
+                Failure risk <span class="badge text-bg-info">model</span>
+                <span th:replace="~{fragments :: badge(${inv.riskLevel()})}"></span>
+                <span th:text="${@fmt.pct(inv.riskScore())}">40%</span>
+            </div>
+        </div>
+    </div>
+
+    <div class="card mb-3"><div class="card-body py-2">
+        <div class="d-flex flex-wrap gap-3 align-items-center small">
+            <strong>Evidence map</strong>
+            <span th:each="entry : ${byClass}">
+                <span th:replace="~{fragments :: classBadge(${entry.key})}"></span>
+                <a th:each="e : ${entry.value}" class="cite ms-1" th:href="'#' + ${e.refLabel()}" th:text="${e.refLabel()}" th:title="${e.title()}">E1</a>
+            </span>
+        </div>
+    </div></div>
+
+    <div class="row g-3">
+        <div class="col-xl-7">
+            <div class="card mb-3"><div class="card-body">
+                <h2 class="h5">Answer</h2>
+                <p class="small text-secondary">Bracketed labels link to the evidence they rely on.</p>
+                <div class="explanation" th:utext="${cited.get('explanation')}">explanation</div>
+            </div></div>
+
+            <div class="card mb-3" th:each="entry : ${byClass}" th:if="${entry.key.name() == 'AI_INTERPRETATION'}"><div class="card-body">
+                <h2 class="h5">AI interpretation <span class="badge text-bg-warning fw-normal">not verified</span></h2>
+                <div th:each="e : ${entry.value}" class="evidence-item p-2" th:id="${e.refLabel()}">
+                    <div class="small text-secondary mb-1" th:text="${e.refLabel() + ' · ' + e.title()}">E11</div>
+                    <div class="explanation" th:utext="${cited.get(e.refLabel())}">text</div>
+                </div>
+                <div th:unless="${unverified.isEmpty()}" class="alert alert-warning small mt-2 mb-0"
+                     th:text="${'Cites evidence that does not exist: ' + #strings.listJoin(unverified, ', ')}">warn</div>
+            </div></div>
+
+            <div class="card mb-3"><div class="card-body">
+                <h2 class="h5">Confidence and limitations</h2>
+                <ul class="small mb-0"><li th:each="l : ${limitations}" th:text="${l}">limit</li></ul>
+            </div></div>
+
+            <div class="card mb-3" id="trace"><div class="card-body">
+                <h2 class="h5">Tool execution trace</h2>
+                <div th:if="${!trace.isEmpty()}">
+                    <p class="small text-secondary">Kiro asked for each tool; Java checked the policy, ran it and logged it (agent_tool_audit).</p>
+                    <div th:each="c, it : ${trace}" class="trace-step mb-2 small" th:classappend="'status-' + ${c.status()}">
+                        <div>
+                            <span class="text-secondary" th:text="${(it.index + 1) + '.'}">1.</span>
+                            <code th:text="${mcpNames.get(c.toolName()) ?: c.toolName()}">tool</code>
+                            <span th:replace="~{fragments :: badge(${c.status()})}"></span>
+                            <span class="text-secondary" th:text="${(c.durationMs() ?: 0) + ' ms · ' + @fmt.time(c.calledAt())}">ms</span>
+                        </div>
+                        <div class="text-break"><code class="text-secondary" th:text="${#strings.abbreviate(c.argumentsJson(), 220)}">{}</code></div>
+                        <div class="text-danger" th:if="${c.errorMessage() != null}" th:text="${c.errorMessage()}">err</div>
+                    </div>
+                </div>
+                <div th:if="${trace.isEmpty()}" class="small">
+                    <p class="text-secondary">Produced by the built-in Java pipeline (no language model). Steps and the evidence each produced:</p>
+                    <ol class="mb-0">
+                        <li th:each="entry : ${byClass}">
+                            <span th:replace="~{fragments :: classBadge(${entry.key})}"></span>
+                            <span th:each="e : ${entry.value}"><a class="cite" th:href="'#' + ${e.refLabel()}" th:text="${e.refLabel()}">E1</a>
+                                <span th:text="${e.title()}">t</span>; </span>
+                        </li>
+                        <li>Fault-signature rules ranked the hypotheses and drafted the recommendations below.</li>
+                    </ol>
+                </div>
+            </div></div>
+
+            <div class="card mb-3"><div class="card-body">
+                <h2 class="h5">Maintenance recommendations</h2>
+                <p class="small text-secondary">Nothing is actioned without an engineer's decision. Proposers cannot review their own.</p>
+                <div th:each="r : ${view.recommendations()}" class="border rounded p-3 mb-2">
+                    <div class="d-flex justify-content-between mb-1">
+                        <div>
+                            <span th:replace="~{fragments :: badge(${r.status()})}"></span>
+                            <span th:replace="~{fragments :: badge(${r.priority()})}"></span>
+                        </div>
+                        <small class="text-secondary">
+                            <span th:text="${'proposed by ' + r.proposedBy() + ' · ' + @fmt.time(r.proposedAt())}">by</span>
+                            <a th:if="${r.proposedViaToolCall() != null}" href="#trace" th:text="${' · MCP tool call #' + r.proposedViaToolCall()}"></a>
+                        </small>
+                    </div>
+                    <p class="mb-1 fw-semibold" th:text="${r.action()}">action</p>
+                    <p class="small mb-2" th:utext="${cited.get('rec-' + r.id())}">rationale</p>
+                    <div th:if="${r.reviewedBy() != null}" class="small text-secondary">
+                        <span th:text="${r.status() + ' by ' + r.reviewedBy() + ' · ' + @fmt.time(r.reviewedAt())}">reviewed</span>
+                        <span th:if="${r.reviewComment() != null and !r.reviewComment().isBlank()}" th:text="'· “' + ${r.reviewComment()} + '”'"></span>
+                    </div>
+                    <form sec:authorize="hasRole('ENGINEER')"
+                          th:if="${r.status().name() == 'PROPOSED' and inv.status().name() != 'CLOSED' and r.proposedBy() != #authentication.name}"
+                          th:action="@{/recommendations/{id}/review(id=${r.id()})}" method="post" class="d-flex gap-2 mt-2">
+                        <input type="hidden" name="investigationId" th:value="${inv.id()}">
+                        <input name="comment" class="form-control form-control-sm" maxlength="1000" placeholder="Review comment">
+                        <button name="approve" value="true" class="btn btn-sm btn-success" type="submit">Approve</button>
+                        <button name="approve" value="false" class="btn btn-sm btn-outline-danger" type="submit">Reject</button>
+                    </form>
+                </div>
+                <p th:if="${view.recommendations().isEmpty()}" class="small text-secondary">No recommendation drafted yet.</p>
+                <details sec:authorize="hasRole('ENGINEER')" th:if="${inv.status().name() != 'CLOSED'}" class="mt-3">
+                    <summary class="small">Propose an alternative action</summary>
+                    <form th:action="@{/investigations/{id}/recommendations(id=${inv.id()})}" method="post" class="mt-2">
+                        <textarea name="action" class="form-control form-control-sm mb-2" rows="2" maxlength="1000" required placeholder="Action"></textarea>
+                        <textarea name="rationale" class="form-control form-control-sm mb-2" rows="2" maxlength="4000" required
+                                  placeholder="Rationale, citing evidence labels (E1, E2…)"></textarea>
+                        <div class="d-flex gap-2">
+                            <select name="priority" class="form-select form-select-sm" style="max-width: 10rem;">
+                                <option th:each="p : ${priorities}" th:value="${p}" th:text="${p}">LOW</option>
+                            </select>
+                            <button class="btn btn-sm btn-outline-primary" type="submit">Propose</button>
+                        </div>
+                    </form>
+                </details>
+            </div></div>
+
+            <div class="card mb-3" th:unless="${view.maintenance().isEmpty()}"><div class="card-body">
+                <h2 class="h5">Work orders</h2>
+                <div th:each="w : ${view.maintenance()}" class="small border rounded p-2 mb-2">
+                    <span th:replace="~{fragments :: badge(${w.status()})}"></span>
+                    <span th:text="${w.action()}">action</span>
+                    <div class="text-secondary" th:text="${'planned by ' + w.plannedBy() + ' · ' + @fmt.time(w.plannedAt()) + (w.assignedTo() != null ? ' · assigned to ' + w.assignedTo() : ' · unassigned')}">p</div>
+                    <a th:href="@{/maintenance}">manage in Maintenance</a>
+                </div>
+            </div></div>
+
+            <div class="card mb-4" id="report"><div class="card-body">
+                <h2 class="h5">Incident report</h2>
+                <div th:if="${view.report().isPresent()}">
+                    <p class="small text-secondary" th:text="${'Issued ' + @fmt.time(view.report().get().generatedAt()) + ' by ' + view.report().get().generatedBy()}">issued</p>
+                    <a class="btn btn-sm btn-outline-secondary mb-2" th:href="@{/investigations/{id}/report.md(id=${inv.id()})}">Download Markdown</a>
+                    <div class="report-body border rounded p-2 bg-light" th:text="${view.report().get().bodyMarkdown()}">report</div>
+                </div>
+                <div th:unless="${view.report().isPresent()}">
+                    <p class="small text-secondary" th:if="${inv.status().name() == 'OPEN'}">The report can be issued once every recommendation has been approved or rejected.</p>
+                    <form sec:authorize="hasRole('ENGINEER')" th:if="${inv.status().name() == 'REVIEWED'}"
+                          th:action="@{/investigations/{id}/report(id=${inv.id()})}" method="post">
+                        <button class="btn btn-primary" type="submit">Generate incident report and close</button>
+                    </form>
+                </div>
+            </div></div>
+        </div>
+
+        <div class="col-xl-5">
+            <div class="card mb-4"><div class="card-body">
+                <h2 class="h5">Evidence</h2>
+                <p class="small text-secondary">Grouped from most to least directly observed. "Open source" shows where each item came from.</p>
+                <div th:each="entry : ${byClass}" th:unless="${entry.key.name() == 'AI_INTERPRETATION'}" class="mb-3">
+                    <div class="mb-2"><span th:replace="~{fragments :: classBadge(${entry.key})}"></span>
+                        <span class="small text-secondary" th:text="${entry.key.meaning()}">meaning</span></div>
+                    <div th:each="e : ${entry.value}" class="evidence-item border rounded p-2 mb-2" th:id="${e.refLabel()}">
+                        <div class="d-flex justify-content-between">
+                            <strong><span class="badge text-bg-dark" th:text="${e.refLabel()}">E1</span> <span th:text="${e.title()}">title</span></strong>
+                            <a class="small text-nowrap" th:href="${links.get(e.refLabel())}">open source</a>
+                        </div>
+                        <div class="evidence-detail text-body-secondary mt-1" th:text="${e.detail()}">detail</div>
+                        <div class="small text-secondary" th:if="${e.source() != null}" th:text="'source: ' + ${e.source()}">src</div>
+                    </div>
+                </div>
+            </div></div>
+        </div>
+    </div>
+</main>
+<th:block th:replace="~{fragments :: scripts}"></th:block>
+</body>
+</html>

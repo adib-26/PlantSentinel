@@ -1,0 +1,28 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org">
+<head th:replace="~{fragments :: head('Investigations')}"></head>
+<body>
+<nav th:replace="~{fragments :: nav}"></nav>
+<main class="container-fluid px-4">
+    <h1 class="h3 mb-3">Investigations</h1>
+    <div class="card"><div class="card-body">
+        <table class="table table-sm align-middle mb-0">
+            <thead><tr><th>#</th><th>Machine</th><th>Opened</th><th>Diagnosis</th><th>Risk</th><th>Status</th><th>Requested by</th></tr></thead>
+            <tbody>
+            <tr th:each="i : ${investigations}">
+                <td><a th:href="@{/investigations/{id}(id=${i.id()})}" th:text="'INV-' + ${i.id()}">INV-1</a></td>
+                <td th:text="${machineCodes.get(i.machineId())}">CNC-01</td>
+                <td th:text="${@fmt.time(i.createdAt())}">t</td>
+                <td th:text="${i.diagnosis()}">d</td>
+                <td><span th:if="${i.riskLevel() != null}" th:replace="~{fragments :: badge(${i.riskLevel()})}"></span></td>
+                <td><span th:replace="~{fragments :: badge(${i.status()})}"></span></td>
+                <td th:text="${i.requestedBy()}">u</td>
+            </tr>
+            <tr th:if="${investigations.isEmpty()}"><td colspan="7" class="text-secondary">No investigations yet.</td></tr>
+            </tbody>
+        </table>
+    </div></div>
+</main>
+<th:block th:replace="~{fragments :: scripts}"></th:block>
+</body>
+</html>

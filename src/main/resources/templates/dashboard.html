@@ -1,0 +1,148 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org" xmlns:sec="http://www.thymeleaf.org/extras/spring-security">
+<head th:replace="~{fragments :: head('Factory overview')}"></head>
+<body>
+<nav th:replace="~{fragments :: nav}"></nav>
+<main class="container-fluid px-4">
+    <div th:replace="~{fragments :: flash}"></div>
+    <div class="d-flex justify-content-between align-items-center mb-3">
+        <div>
+            <h1 class="h3 mb-0" th:text="${factory.name()}">Plant</h1>
+            <small class="text-secondary" th:text="${factory.code() + ' · ' + (factory.location() ?: '')}">code</small>
+        </div>
+        <a sec:authorize="hasRole('ENGINEER')" class="btn btn-primary" th:href="@{/machines/new}">Register machine</a>
+    </div>
+
+    <div class="row g-3 mb-3">
+        <div class="col-6 col-lg-2"><div class="card h-100"><div class="card-body">
+            <div class="kpi-label">Registered machines</div><div class="kpi" th:text="${total}">4</div>
+        </div></div></div>
+        <div class="col-6 col-lg-2"><div class="card h-100"><div class="card-body">
+            <div class="kpi-label">Operating normally</div><div class="kpi text-success" th:text="${normal}">2</div>
+        </div></div></div>
+        <div class="col-6 col-lg-2"><div class="card h-100"><div class="card-body">
+            <div class="kpi-label">Need attention</div><div class="kpi text-warning" th:text="${attention}">2</div>
+            <div class="small text-secondary">health, risk ≥ HIGH or data not live</div>
+        </div></div></div>
+        <div class="col-6 col-lg-2"><div class="card h-100"><div class="card-body">
+            <div class="kpi-label">Active alerts (1 h)</div><div class="kpi" th:classappend="${criticalAlerts > 0} ? 'text-danger'" th:text="${alertCount}">3</div>
+            <div class="small text-secondary" th:text="${criticalAlerts + ' critical'}">0 critical</div>
+        </div></div></div>
+        <div class="col-6 col-lg-2"><div class="card h-100"><div class="card-body">
+            <div class="kpi-label">Awaiting approval</div><div class="kpi" th:text="${pendingReviews}">1</div>
+            <a class="small" th:href="@{/maintenance}">open maintenance</a>
+        </div></div></div>
+        <div class="col-6 col-lg-2"><div class="card h-100"><div class="card-body">
+            <div class="kpi-label">Mean failure risk</div>
+            <div class="kpi" th:text="${@fmt.pct(riskSummary.meanProbability())}">20%</div>
+            <div class="small text-secondary" th:if="${riskSummary.highest() != null}"
+                 th:text="${'highest ' + riskSummary.highest().machine().code() + ' ' + @fmt.pct(riskSummary.highest().risk().get().probability())}">h</div>
+        </div></div></div>
+    </div>
+
+    <div class="row g-3 mb-3">
+        <div class="col-xl-8">
+            <div class="row g-3">
+                <div class="col-md-6" th:each="card : ${cards}">
+                    <a class="text-decoration-none text-body" th:href="@{/machines/{code}(code=${card.machine().code()})}">
+                        <div class="card machine-card h-100" th:classappend="'tone-' + ${@fmt.tone(card.machine().healthStatus())}">
+                            <div class="card-body">
+                                <div class="d-flex justify-content-between">
+                                    <h2 class="h5 mb-0" th:text="${card.machine().code()}">CNC-01</h2>
+                                    <span>
+                                        <span th:replace="~{fragments :: badge(${card.machine().healthStatus()})}"></span>
+                                        <span th:replace="~{fragments :: badge(${card.quality().connectivity()})}"></span>
+                                    </span>
+                                </div>
+                                <div class="text-secondary small mb-2" th:text="${card.machine().name() + ' · ' + card.machine().type().displayName() + ' · ' + (card.machine().location() ?: '')}">name</div>
+                                <div class="d-flex justify-content-between align-items-end">
+                                    <div>
+                                        <div class="small text-secondary">Failure risk <span class="badge text-bg-light border">model</span></div>
+                                        <div th:if="${card.risk().isPresent()}">
+                                            <span class="metric-value" th:text="${@fmt.pct(card.risk().get().probability())}">12%</span>
+                                            <span th:replace="~{fragments :: badge(${card.risk().get().level()})}"></span>
+                                        </div>
+                                        <div th:unless="${card.risk().isPresent()}" class="text-secondary">no data</div>
+                                    </div>
+                                    <div class="text-end small">
+                                        <div th:text="${card.anomalies24h() + ' anomalies / 24 h'}">0</div>
+                                        <div class="text-secondary" th:text="${'data ' + @fmt.pct(card.quality().completeness()) + ' complete · ' + @fmt.ago(card.machine().lastSeenAt())}">q</div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </a>
+                </div>
+                <div class="col-12" th:if="${cards.isEmpty()}">
+                    <div class="alert alert-info mb-0">No machines yet. Register one, then point its BAS edge node at <code>POST /api/edge/telemetry</code>.</div>
+                </div>
+            </div>
+        </div>
+        <div class="col-xl-4">
+            <div class="card mb-3"><div class="card-body">
+                <h2 class="h5">Factory risk summary</h2>
+                <p class="small text-secondary mb-2" th:text="${riskSummary.assessed() + ' machines assessed by the failure-risk model'}">x</p>
+                <div th:each="l : ${riskSummary.byLevel()}" class="d-flex align-items-center gap-2 mb-1 small">
+                    <span class="badge" style="width:5.5rem" th:classappend="'text-bg-' + ${@fmt.tone(l.key)}" th:text="${l.key}">LOW</span>
+                    <div class="flex-grow-1 bar-track"><div class="bar" th:style="'width:' + ${@fmt.share(riskSummary.assessed() == 0 ? 0.0 : l.value * 1.0 / riskSummary.assessed())} + '%'"></div></div>
+                    <span style="width:1.5rem" class="text-end" th:text="${l.value}">1</span>
+                </div>
+                <a class="small" th:href="@{/analytics}">Open predictive analytics</a>
+            </div></div>
+            <div class="card"><div class="card-body">
+                <h2 class="h5">Active anomaly alerts</h2>
+                <ul class="list-unstyled small mb-0">
+                    <li th:each="a : ${alerts}" class="mb-1">
+                        <span th:replace="~{fragments :: badge(${a.event().severity()})}"></span>
+                        <a th:href="@{/machines/{c}(c=${a.machineCode()})}" th:text="${a.machineCode()}">CNC-01</a>
+                        <span th:text="${a.event().message()}">msg</span>
+                        <span class="text-secondary" th:text="${'· ' + @fmt.ago(a.event().detectedAt())}">t</span>
+                    </li>
+                    <li th:if="${alerts.isEmpty()}" class="text-secondary">No anomalies in the last hour.</li>
+                </ul>
+            </div></div>
+        </div>
+    </div>
+
+    <div class="row g-3 mb-4">
+        <div class="col-lg-6">
+            <div class="card h-100"><div class="card-body">
+                <h2 class="h5">Recent maintenance events</h2>
+                <table class="table table-sm small mb-0" th:unless="${maintenanceEvents.isEmpty()}">
+                    <thead><tr><th>Machine</th><th>Work</th><th>Status</th><th>Assigned</th><th>When</th></tr></thead>
+                    <tbody>
+                    <tr th:each="m : ${maintenanceEvents}">
+                        <td th:text="${machineCodes.get(m.machineId())}">CNC-01</td>
+                        <td th:text="${#strings.abbreviate(m.action(), 70)}">a</td>
+                        <td><span th:replace="~{fragments :: badge(${m.status()})}"></span></td>
+                        <td th:text="${m.assignedTo() ?: '–'}">t</td>
+                        <td class="text-nowrap" th:text="${@fmt.ago(m.completedAt() ?: m.plannedAt())}">t</td>
+                    </tr>
+                    </tbody>
+                </table>
+                <p th:if="${maintenanceEvents.isEmpty()}" class="text-secondary mb-0">No maintenance yet. Approved recommendations create work orders.</p>
+            </div></div>
+        </div>
+        <div class="col-lg-6">
+            <div class="card h-100"><div class="card-body">
+                <h2 class="h5">Recent investigations</h2>
+                <table class="table table-sm small mb-0" th:unless="${investigations.isEmpty()}">
+                    <thead><tr><th>#</th><th>Machine</th><th>Diagnosis</th><th>By</th><th>Status</th></tr></thead>
+                    <tbody>
+                    <tr th:each="i : ${investigations}">
+                        <td><a th:href="@{/investigations/{id}(id=${i.id()})}" th:text="'INV-' + ${i.id()}">INV-1</a></td>
+                        <td th:text="${machineCodes.get(i.machineId())}">CNC-01</td>
+                        <td th:text="${i.diagnosis()}">d</td>
+                        <td th:text="${i.requestedBy()}">u</td>
+                        <td><span th:replace="~{fragments :: badge(${i.status()})}"></span></td>
+                    </tr>
+                    </tbody>
+                </table>
+                <p th:if="${investigations.isEmpty()}" class="text-secondary mb-0">None yet. Ask the <a th:href="@{/assistant}">Kiro assistant</a>.</p>
+            </div></div>
+        </div>
+    </div>
+</main>
+<th:block th:replace="~{fragments :: scripts}"></th:block>
+</body>
+</html>

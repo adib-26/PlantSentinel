@@ -1,0 +1,144 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org">
+<head th:replace="~{fragments :: head('Predictive analytics')}"></head>
+<body>
+<nav th:replace="~{fragments :: nav}"></nav>
+<main class="container-fluid px-4">
+    <h1 class="h3 mb-1">Predictive analytics</h1>
+    <p class="text-secondary">Everything on this page is a <span class="badge text-bg-info">model prediction</span>: probabilistic,
+        and limited by the data each model was trained on.</p>
+
+    <div class="card mb-3"><div class="card-body">
+        <h2 class="h5">Anomaly scores and failure-risk estimates</h2>
+        <table class="table table-sm align-middle small mb-0">
+            <thead><tr><th>Machine</th><th>Health</th>
+                <th>Isolation Forest score / threshold <span class="text-secondary fw-normal" th:text="${'(last ' + windowMinutes + ' min)'}">2h</span></th>
+                <th>Failure risk</th><th>Top driver</th><th>Trend</th><th>Last stored prediction</th><th></th></tr></thead>
+            <tbody>
+            <tr th:each="r : ${rows}" th:classappend="${selected != null and r.machine().code() == selected.machine().code()} ? 'table-active'">
+                <td><a th:href="@{/machines/{c}(c=${r.machine().code()})}" th:text="${r.machine().code()}">CNC-01</a></td>
+                <td><span th:replace="~{fragments :: badge(${r.machine().healthStatus()})}"></span></td>
+                <td>
+                    <span th:if="${r.multivariate() != null}">
+                        <span th:text="${@fmt.num(r.multivariate().score(), 3) + ' / ' + @fmt.num(r.multivariate().threshold(), 3)}">0.6 / 0.63</span>
+                        <span class="badge" th:classappend="${r.multivariate().anomalous()} ? 'text-bg-danger' : 'text-bg-success'"
+                              th:text="${r.multivariate().anomalous()} ? 'abnormal' : 'normal'">normal</span>
+                    </span>
+                    <span th:unless="${r.multivariate() != null}" class="text-secondary">fewer than 60 readings</span>
+                </td>
+                <td th:if="${r.risk().isPresent()}">
+                    <span th:text="${@fmt.pct(r.risk().get().probability())}">20%</span>
+                    <span th:replace="~{fragments :: badge(${r.risk().get().level()})}"></span>
+                </td>
+                <td th:unless="${r.risk().isPresent()}" class="text-secondary">no data</td>
+                <td th:text="${r.risk().isPresent() and !r.risk().get().drivers().isEmpty()} ? ${r.risk().get().drivers().get(0).label()} : '–'">vib</td>
+                <td th:text="${r.trend()}">rising</td>
+                <td class="text-nowrap" th:text="${r.recentPredictions().isEmpty()} ? '–' : ${@fmt.ago(r.recentPredictions().get(0).predictedAt())}">t</td>
+                <td><a th:href="@{/analytics(machine=${r.machine().code()})}">details</a></td>
+            </tr>
+            </tbody>
+        </table>
+    </div></div>
+
+    <div class="row g-3 mb-3" th:if="${selected != null}">
+        <div class="col-xl-7">
+            <div class="card h-100"><div class="card-body">
+                <h2 class="h5" th:text="${'Prediction history: ' + selected.machine().code()}">History</h2>
+                <div class="chart-box" style="height:240px">
+                    <canvas id="prediction-chart" th:attr="data-url=@{/analytics/{c}/predictions.json(c=${selected.machine().code()})}"></canvas>
+                </div>
+                <table class="table table-sm small mt-2 mb-0">
+                    <thead><tr><th>Time</th><th>Trigger</th><th class="text-end">Probability</th><th>Level</th><th>Model</th><th>Anomaly event</th></tr></thead>
+                    <tbody>
+                    <tr th:each="p : ${history}">
+                        <td class="text-nowrap" th:text="${@fmt.time(p.predictedAt())}">t</td>
+                        <td th:text="${p.trigger()}">SCHEDULED</td>
+                        <td class="text-end" th:text="${@fmt.pct(p.probability())}">10%</td>
+                        <td><span th:replace="~{fragments :: badge(${p.level()})}"></span></td>
+                        <td th:text="${p.modelName()}">LR</td>
+                        <td th:text="${p.anomalyEventId() ?: '–'}">–</td>
+                    </tr>
+                    </tbody>
+                </table>
+            </div></div>
+        </div>
+        <div class="col-xl-5">
+            <div class="card h-100"><div class="card-body">
+                <h2 class="h5" th:text="${'Why the risk is what it is: ' + selected.machine().code()}">Explanation</h2>
+                <div th:if="${selected.risk().isPresent()}" th:with="r=${selected.risk().get()}">
+                    <p class="small text-secondary">Each feature's contribution to the log-odds (weight × feature value) for the
+                        latest prediction. Log-odds = intercept <span th:text="${@fmt.num(intercept, 2)}">-4</span> + sum of contributions.</p>
+                    <table class="table table-sm small mb-0">
+                        <thead><tr><th>Feature</th><th class="text-end">Value</th><th class="text-end">Contribution</th><th style="width:35%"></th></tr></thead>
+                        <tbody>
+                        <tr th:each="c : ${r.contributions()}">
+                            <td th:text="${c.label()}">f</td>
+                            <td class="text-end" th:text="${@fmt.num(c.value(), 3)}">0.1</td>
+                            <td class="text-end" th:text="${@fmt.num(c.logOdds(), 2)}">0.5</td>
+                            <td><div class="bar-track"><div class="bar" th:classappend="${c.logOdds() < 0} ? 'neg'"
+                                     th:style="'width:' + ${@fmt.relative(c.logOdds(), 6.0)} + '%'"></div></div></td>
+                        </tr>
+                        </tbody>
+                    </table>
+                </div>
+                <p th:unless="${selected.risk().isPresent()}" class="text-secondary">No telemetry yet.</p>
+            </div></div>
+        </div>
+    </div>
+
+    <div class="row g-3 mb-4">
+        <div class="col-xl-5">
+            <div class="card h-100"><div class="card-body">
+                <h2 class="h5">Failure-risk model</h2>
+                <table class="table table-sm small">
+                    <tbody>
+                    <tr><th>Model version</th><td>failure-risk-lr v1 (retrained at startup, seed 42)</td></tr>
+                    <tr><th>Algorithm</th><td th:text="${riskModel.algorithm()}">LR</td></tr>
+                    <tr><th>Training data</th><td th:text="${riskModel.trainingData() + ', ' + riskModel.trainingSamples() + ' samples'}">synthetic</td></tr>
+                    <tr><th>Hold-out accuracy</th><td th:text="${@fmt.num(riskModel.holdoutAccuracy(), 3)}">0.87</td></tr>
+                    <tr><th>Hold-out ROC-AUC</th><td th:text="${@fmt.num(riskModel.holdoutAuc(), 3)}">0.92</td></tr>
+                    </tbody>
+                </table>
+                <div class="small fw-semibold mb-1">Feature importance (model coefficients, log-odds per unit)</div>
+                <div th:each="w : ${weights}" class="d-flex align-items-center gap-2 small mb-1">
+                    <span style="width:45%" th:text="${w.label()}">f</span>
+                    <div class="flex-grow-1 bar-track"><div class="bar" th:classappend="${w.weight() < 0} ? 'neg'"
+                         th:style="'width:' + ${@fmt.relative(w.weight(), maxWeight)} + '%'"></div></div>
+                    <span style="width:3rem" class="text-end" th:text="${@fmt.num(w.weight(), 2)}">1</span>
+                </div>
+                <div class="small text-secondary mt-2">Other models in use: vision <code th:text="${defectModel}">onnx</code>;
+                    multivariate Isolation Forest fitted per request on each machine's own window.</div>
+            </div></div>
+        </div>
+        <div class="col-xl-7">
+            <div class="card h-100"><div class="card-body">
+                <div class="d-flex justify-content-between">
+                    <h2 class="h5">Trained models (ML lab)</h2>
+                    <a class="small" th:href="@{/models}">full model cards</a>
+                </div>
+                <div th:if="${labCards.isEmpty()}" class="text-secondary">No trained models installed. Run <code>ml/run-ml-lab.sh</code>.</div>
+                <div th:each="c : ${labCards}" class="border rounded p-2 mb-2">
+                    <div class="d-flex justify-content-between">
+                        <strong th:text="${c.name()}">name</strong>
+                        <span class="small text-secondary" th:text="${'v' + c.version() + ' · trained ' + @fmt.time(c.trainedAt())}">v</span>
+                    </div>
+                    <div class="small text-secondary" th:text="${c.algorithm() + ' · ' + c.dataset().name()}">alg</div>
+                    <div class="small mt-1">
+                        <span th:each="m : ${c.testMetrics()}" th:if="${!#lists.contains({'tp','fp','tn','fn'}, m.key)}"
+                              class="badge text-bg-light border me-1" th:text="${m.key + ' ' + @fmt.num(m.value, 3)}">m</span>
+                    </div>
+                    <div class="small mt-1" th:if="${c.featureImportance() != null}">
+                        Top features:
+                        <span th:each="f, it : ${c.featureImportance()}" th:if="${it.index < 4}"
+                              th:text="${f.key + ' ' + @fmt.pct(f.value) + (it.index < 3 ? ', ' : '')}">f</span>
+                    </div>
+                </div>
+            </div></div>
+        </div>
+    </div>
+</main>
+<th:block th:replace="~{fragments :: scripts}"></th:block>
+<script th:src="@{/webjars/chart.js/dist/chart.umd.min.js}"></script>
+<script th:src="@{/js/analytics-charts.js}"></script>
+</body>
+</html>

@@ -1,0 +1,72 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org" xmlns:sec="http://www.thymeleaf.org/extras/spring-security">
+<head th:replace="~{fragments :: head('Manuals')}"></head>
+<body>
+<nav th:replace="~{fragments :: nav}"></nav>
+<main class="container-fluid px-4">
+    <div th:replace="~{fragments :: flash}"></div>
+    <h1 class="h3 mb-3">Knowledge management</h1>
+    <div class="row g-3">
+        <div class="col-xl-7">
+            <div class="card mb-3"><div class="card-body">
+                <h2 class="h5">Search technical information</h2>
+                <p class="small text-secondary" th:text="${'Retrieval: ' + retriever + '. Results link to the exact section.'}">r</p>
+                <form th:action="@{/manuals}" method="get" class="d-flex gap-2 mb-3">
+                    <input name="q" class="form-control" th:value="${q}" maxlength="500"
+                           placeholder="e.g. compressor high discharge temperature">
+                    <select name="type" class="form-select" style="max-width: 14rem;">
+                        <option value="">All machine types</option>
+                        <option th:each="t : ${machineTypes}" th:value="${t}" th:text="${t.displayName()}" th:selected="${t == type}">t</option>
+                    </select>
+                    <button class="btn btn-primary" type="submit">Search</button>
+                </form>
+                <div th:each="h, s : ${hits}" class="mb-3">
+                    <div class="d-flex justify-content-between">
+                        <a class="fw-semibold" th:href="@{/manuals/{d}(d=${chunkDocuments.get(h.chunkId())})} + '#chunk-' + ${h.chunkId()}"
+                           th:text="${s.count + '. ' + h.citation()}">citation</a>
+                        <small class="text-secondary" th:text="'BM25 ' + ${@fmt.num(h.score(), 2)}">score</small>
+                    </div>
+                    <div class="evidence-detail" th:text="${h.content()}">content</div>
+                </div>
+                <p th:if="${q != null and !q.isBlank() and hits.isEmpty()}" class="text-secondary">No matching passages.</p>
+            </div></div>
+        </div>
+        <div class="col-xl-5">
+            <div class="card mb-3" sec:authorize="hasRole('ENGINEER')"><div class="card-body">
+                <h2 class="h5">Upload maintenance manuals</h2>
+                <form th:action="@{/manuals}" method="post" enctype="multipart/form-data">
+                    <input name="file" type="file" class="form-control mb-2" accept=".pdf,.docx,.doc,.txt,.md" required>
+                    <input name="title" class="form-control mb-2" maxlength="255" placeholder="Title (optional)">
+                    <select name="type" class="form-select mb-2">
+                        <option value="">General (all machine types)</option>
+                        <option th:each="t : ${machineTypes}" th:value="${t}" th:text="${t.displayName()}">t</option>
+                    </select>
+                    <button class="btn btn-primary" type="submit">Upload and index</button>
+                    <div class="form-text">Text is extracted with Apache Tika, split into sections and indexed for retrieval.</div>
+                </form>
+            </div></div>
+            <div class="card"><div class="card-body">
+                <h2 class="h5">Browse documents</h2>
+                <table class="table table-sm small mb-0">
+                    <thead><tr><th>Title</th><th>Type</th><th class="text-end">Sections</th><th class="text-end">Cited</th><th></th></tr></thead>
+                    <tbody>
+                    <tr th:each="d : ${documents}">
+                        <td><a th:href="@{/manuals/{id}(id=${d.id()})}" th:text="${d.title()}">title</a></td>
+                        <td th:text="${d.machineType() == null ? 'General' : d.machineType().displayName()}">type</td>
+                        <td class="text-end" th:text="${d.chunkCount()}">3</td>
+                        <td class="text-end" th:text="${citationCounts.get(d.id())}">0</td>
+                        <td class="text-end">
+                            <form sec:authorize="hasRole('ADMIN')" th:action="@{/manuals/{id}/delete(id=${d.id()})}" method="post">
+                                <button class="btn btn-link btn-sm text-danger p-0" type="submit">delete</button>
+                            </form>
+                        </td>
+                    </tr>
+                    </tbody>
+                </table>
+            </div></div>
+        </div>
+    </div>
+</main>
+<th:block th:replace="~{fragments :: scripts}"></th:block>
+</body>
+</html>

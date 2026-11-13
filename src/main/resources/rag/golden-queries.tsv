@@ -1,0 +1,25 @@
+# Labelled questions for the retrieval benchmark (RetrievalQualityMonitor). One per line, tab-separated:
+# machine type (or -), a word or phrase that the correct section title contains (case-insensitive), the question.
+# The questions are phrased the way engineers ask, not copied from the section titles.
+CNC_MILL	bearing failure	spindle is growling and vibration keeps climbing on the mill
+CNC_MILL	bearing replacement	how do I swap out a worn spindle bearing
+CNC_MILL	spindle overheating	the mill spindle runs far too hot after an hour
+CNC_MILL	coolant pressure	coolant flow to the tool keeps dropping
+CNC_MILL	overload	drive torque is much higher than normal when cutting
+CNC_MILL	lubrication	which grease and how often for the spindle
+CNC_MILL	crack	inspection photo shows a hairline crack on the housing
+CENTRIFUGAL_PUMP	cavitation	pump sounds like gravel at the suction side
+CENTRIFUGAL_PUMP	discharge pressure	pump outlet pressure is falling below setpoint
+CENTRIFUGAL_PUMP	bearing	pump bearing vibration is increasing
+CENTRIFUGAL_PUMP	overheating	pump casing temperature too high
+CENTRIFUGAL_PUMP	impeller	how to check the impeller for erosion damage
+AIR_COMPRESSOR	discharge temperature	compressor air outlet is running hot and tripping
+AIR_COMPRESSOR	oil and filter	when should the compressor oil and separator be changed
+AIR_COMPRESSOR	low discharge pressure	compressor cannot build up line pressure
+CONVEYOR	belt slip	belt speed varies and the belt slips on the drive drum
+CONVEYOR	jams	conveyor stopped with a jam and overload trip
+CONVEYOR	tensioner	take-up tensioner keeps losing pressure
+CONVEYOR	gearbox	conveyor gearbox is hot and noisy
+-	vibration severity	what vibration velocity is acceptable for a machine of this size
+-	preventive maintenance	recommended service intervals for plant equipment
+-	responding to anomalies	what to do first when monitoring raises an alarm

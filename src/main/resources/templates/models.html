@@ -1,0 +1,52 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org">
+<head th:replace="~{fragments :: head('Models')}"></head>
+<body>
+<nav th:replace="~{fragments :: nav}"></nav>
+<main class="container-fluid px-4">
+    <h1 class="h3 mb-1">Model registry</h1>
+    <p class="text-secondary">Models trained offline by the ML lab (<code>ml/run-ml-lab.sh</code>) and verified by SHA-256 at
+        startup. Prediction API: <code>/api/ml/*</code>. Evidence reports: <code>ml/reports/</code>.</p>
+    <div th:if="${cards.isEmpty()}" class="alert alert-info">No trained models installed. Run <code>ml/run-ml-lab.sh</code>.</div>
+    <div class="row g-3">
+        <div class="col-xl-6" th:each="c : ${cards}">
+            <div class="card h-100"><div class="card-body">
+                <div class="d-flex justify-content-between">
+                    <h2 class="h5 mb-0" th:text="${c.name()}">name</h2>
+                    <span class="badge text-bg-dark" th:text="'v' + ${c.version()}">v1</span>
+                </div>
+                <div class="text-secondary small mb-2" th:text="${c.task()}">task</div>
+                <table class="table table-sm small mb-2">
+                    <tbody>
+                    <tr><th>Algorithm</th><td th:text="${c.algorithm()}">alg</td></tr>
+                    <tr><th>Trained</th><td th:text="${@fmt.time(c.trainedAt())}">t</td></tr>
+                    <tr><th>Dataset</th><td th:text="${c.dataset().name() + ' (' + c.dataset().licence() + ')'}">ds</td></tr>
+                    <tr><th>Dataset version</th><td class="text-break"><code class="small" th:text="${c.dataset().version()}">v</code></td></tr>
+                    <tr><th>Split</th><td th:text="${c.dataset().trainRows() + ' train / ' + c.dataset().validationRows() + ' validation / ' + c.dataset().testRows() + ' test; ' + c.dataset().splitStrategy()}">s</td></tr>
+                    <tr th:if="${c.decisionThreshold() != null}"><th>Decision threshold</th><td th:text="${@fmt.num(c.decisionThreshold(), 4)}">0.5</td></tr>
+                    <tr><th>Features</th><td th:text="${#strings.listJoin(c.featureNames(), ', ')}">f</td></tr>
+                    <tr><th>Artifact</th><td class="text-break"><code class="small" th:text="${c.artifact() + ' sha256:' + c.artifactSha256()}">a</code></td></tr>
+                    </tbody>
+                </table>
+                <div class="small fw-semibold">Test metrics</div>
+                <div class="small">
+                    <span th:each="m : ${c.testMetrics()}" class="badge text-bg-light border me-1 mb-1"
+                          th:text="${m.key + ' ' + @fmt.num(m.value, 4)}">m</span>
+                </div>
+                <div th:if="${c.featureImportance() != null}">
+                    <div class="small fw-semibold mt-2">Feature importance (share of impurity reduction)</div>
+                    <div th:each="f, it : ${c.featureImportance()}" th:if="${it.index < 6}" class="d-flex align-items-center gap-2 small">
+                        <span style="width:40%" th:text="${f.key}">f</span>
+                        <div class="flex-grow-1 bar-track"><div class="bar" th:style="'width:' + ${@fmt.share(f.value)} + '%'"></div></div>
+                        <span style="width:3rem" class="text-end" th:text="${@fmt.pct(f.value)}">10%</span>
+                    </div>
+                </div>
+                <div class="small fw-semibold mt-2">Limitations</div>
+                <ul class="small mb-0"><li th:each="l : ${c.limitations()}" th:text="${l}">l</li></ul>
+            </div></div>
+        </div>
+    </div>
+</main>
+<th:block th:replace="~{fragments :: scripts}"></th:block>
+</body>
+</html>
