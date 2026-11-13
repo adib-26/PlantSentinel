@@ -160,6 +160,12 @@ Train the ML models: `ml/run-ml-lab.sh` (see [ml/README.md](ml/README.md)).
 `./mvnw test` runs 141 unit and integration tests (see [docs/testing.md](docs/testing.md) for the test matrix and failure scenarios), including the full engineer journey, the example agent investigation through the
 real tool callbacks, agent policy, security chains, ML metrics and the trained-model API. `./mvnw verify` adds PostgreSQL Testcontainers tests (requires Docker).
 
+## Licence
+
+This version of PlantSentinel is released under the GNU General Public License, version 2 only. The licence is the file `LICENSE`, copied verbatim from the Free Software Foundation. Its copyright notice is unchanged: Copyright (C) 1989, 1991 Free Software Foundation, Inc. No other licence is granted.
+
+This source tree had no copyright or licence headers to remove. Dataset attribution in the model cards and in `ml/datasets/README.md` is unchanged. BAS and Mako Server are not part of this source; their copyright and licence notices stay in the [BAS repository](https://github.com/RealTimeLogic/BAS).
+
 ## BAS licensing
 
 The [BAS repository](https://github.com/RealTimeLogic/BAS) offers GPLv2 and commercial licensing options. If you distribute a derivative BAS application, understand the GPLv2 obligations, including the treatment of application content hosted by a derivative product. For a public portfolio, keep your integration separate and review the licence before distributing a combined package.
