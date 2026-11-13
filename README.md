@@ -1,4 +1,4 @@
-# BAS Intelligence
+# PlantSentinel
 
 AI-powered industrial monitoring, predictive maintenance and diagnostic assistant. It runs on an 8 GB laptop CPU
 with **RM0 recurring cost**: the Spring Boot app runs locally, data lives in Neon's free PostgreSQL plan, and **Kiro**
@@ -7,6 +7,12 @@ is the reasoning agent, connected over MCP.
 A factory engineer can register machines, watch telemetry, see anomalies and failure risk, inspect component images,
 ask for an investigation backed by maintenance-manual evidence, approve or reject the recommendations (four-eyes
 rule), and issue an incident report.
+
+## Why
+
+A machine rarely fails without a trail: vibration drifts, a temperature climbs, a manual already describes that pattern. Those signals usually live in different tools, and a hosted model that "explains" the failure often cannot show the chart, the prediction, or the manual page it used. It can also be asked to act on its own.
+
+PlantSentinel keeps that trail in one place on a laptop. Detectors and risk models score the machine from its own telemetry. An investigation must cite telemetry, a model output, or a manual section. The agent can only propose a recommendation. A second engineer approves or rejects it before anyone writes a work order. The app holds no LLM API key, so the reasoning stays outside the process that stores the plant data.
 
 ## Architecture
 
