@@ -63,7 +63,7 @@ class DiagnosisEngineTest {
     @Test
     void defectInspectionCorroboratesBearingWear() {
         var defect = new Inspection(1, TestReadings.MACHINE, Instant.now(), "bearing housing", "x.png", "a", "b", 0.97,
-                Inspection.Verdict.DEFECT, 1, "m", 3, "engineer");
+                Inspection.Verdict.DEFECT, 1, "m", 3, "engineer", null);
         var withDefect = engine.diagnose(input(MachineType.CNC_MILL, Scenario.BEARING_WEAR, List.of(defect)));
         var without = engine.diagnose(input(MachineType.CNC_MILL, Scenario.BEARING_WEAR, List.of()));
 

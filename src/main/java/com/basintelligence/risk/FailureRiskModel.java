@@ -19,6 +19,11 @@ public final class FailureRiskModel {
 
     private static final Logger log = LoggerFactory.getLogger(FailureRiskModel.class);
 
+    /** Stable identifier recorded with every prediction and used as the metric tag. */
+    public static final String NAME = "failure-risk";
+    /** Bump when the features, synthetic data generator or training options change. */
+    static final String RECIPE_VERSION = "1.0";
+
     private final LogisticRegression.Binomial model;
     private final double[] weights;
     private final RiskAssessment.ModelInfo info;
@@ -45,10 +50,11 @@ public final class FailureRiskModel {
         }
         double accuracy = (double) correct / testY.length;
         double auc = auc(scores, testY);
-        log.info("Failure-risk model trained on {} samples: hold-out accuracy {}, AUC {}", split,
+        String version = RECIPE_VERSION + "+w" + RiskFeatures.sha256(model.coefficients()).substring(0, 12);
+        log.info("Failure-risk model {} trained on {} samples: hold-out accuracy {}, AUC {}", version, split,
                 String.format("%.3f", accuracy), String.format("%.3f", auc));
-        return new FailureRiskModel(model, new RiskAssessment.ModelInfo("Logistic regression (Smile, L2)", split,
-                accuracy, auc, "synthetic fault-mode simulation"));
+        return new FailureRiskModel(model, new RiskAssessment.ModelInfo(NAME, version, "Logistic regression (Smile, L2)",
+                split, accuracy, auc, "synthetic fault-mode simulation"));
     }
 
     public double probability(double[] features) {

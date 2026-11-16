@@ -15,7 +15,9 @@ public record Inspection(
         int defectRegions,
         String modelVersion,
         long inferenceMs,
-        String inspectedBy) {
+        String inspectedBy,
+        // SHA-256 of the uploaded image bytes; null for inspections stored before migration V15
+        String imageSha256) {
 
     public enum Verdict {
         PASS, DEFECT

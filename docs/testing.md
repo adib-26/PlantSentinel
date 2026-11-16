@@ -2,7 +2,7 @@
 
 | Command | Runs | Needs |
 |---|---|---|
-| `./mvnw test` | 175 unit, API, integration, agent, security, ML-gate and scenario tests (H2) | nothing |
+| `./mvnw test` | 192 unit, API, integration, agent, security, ML-gate and scenario tests (H2) | nothing |
 | `./mvnw verify` | the above plus PostgreSQL 17 repository tests and the database-outage test | Docker |
 | `./mvnw test -Pperformance` | lightweight load test, writes `target/performance-report.md` | nothing |
 | `MAKO_DIR=… ./edge/test-edge-outage.sh` | real Mako Server edge node through a server outage | a Mako Server build |
@@ -12,8 +12,8 @@
 
 | Category | What is tested | Where | Tools |
 |---|---|---|---|
-| Unit | detectors, analyzer, data quality, plausibility, risk model, metrics, features, BM25, chunker, diagnosis rules, review rules, agent policy | `analytics/`, `telemetry/`, `risk/`, `mllab/`, `ml/`, `knowledge/`, `investigation/`, `agent/` | JUnit 5, Mockito, AssertJ |
-| Repository | migrations, telemetry queries, event-id uniqueness, rollups, full-text search, check constraints (physics, four-eyes, one decision per recommendation, no automated failure confirmation) | `postgres/PostgresRepositoryIT` | Testcontainers PostgreSQL 17 |
+| Unit | detectors, analyzer, data quality, plausibility, risk model, prediction checks, metrics, features, BM25, chunker, diagnosis rules, review rules, agent policy | `analytics/`, `telemetry/`, `risk/`, `mllab/`, `ml/`, `knowledge/`, `investigation/`, `agent/` | JUnit 5, Mockito, AssertJ |
+| Repository | migrations, telemetry queries, event-id uniqueness, rollups, full-text search, check constraints (physics, four-eyes, one decision per recommendation, no automated failure confirmation), the prediction governance view and prediction checks | `postgres/PostgresRepositoryIT` | Testcontainers PostgreSQL 17 |
 | API | status codes, validation, problem details, upload limits | `SecurityIntegrationTest`, `MlPredictionApiIntegrationTest`, `scenarios/*` | MockMvc, real HTTP on a random port |
 | Integration | the full ingestion → anomaly → risk → investigation → approval → report journey; the six UI screens | `InvestigationWorkflowIntegrationTest`, `DashboardScreensIntegrationTest` | Spring Boot Test |
 | External API | MCP client against a server that answers correctly, too slowly, or with malformed responses | `mcpclient/McpClientWireMockTest` | WireMock |
@@ -45,6 +45,7 @@
 | A user floods an AI endpoint | 429 with `Retry-After`, per user and kind, audited | `AiRateLimitIntegrationTest` |
 | An engineer simulates a machine incident | The fault ramps through normal ingestion (source SIMULATOR); detectors and health react; an investigation labelled "Simulated incident SIM-n" starts when the fault peaks; its recommendation still needs another engineer; machines fed by a real edge node are refused (409); only engineers can start or stop | `SimulatedIncidentScenarioIntegrationTest` |
 | A file's content does not match its name (text as .pdf, executable as .txt, ZIP as .docx, GIF as .png) or declares huge dimensions | Rejected before parsing or decoding | `UploadValidationIntegrationTest` |
+| A prediction is audited after retention pruned its raw telemetry, or after its score, input record or readings were changed | Every stored prediction has model name, version and input reference (inspections too, in `prediction_governance`); after pruning the check still reports `VERIFIED` from the recorded input, with the raw-telemetry check skipped; any edit gives `MISMATCH` naming the failed check; rows from before V15 are `UNVERIFIABLE`; other machines' or factories' predictions answer 404 | `PredictionGovernanceScenarioIntegrationTest`, `PredictionVerifierTest`, `PostgresRepositoryIT` |
 | A password is reset or a user disabled while their credentials are cached | Old password and disabled account refused on the next request; sessions ended | `AdminAndAuditScenariosIntegrationTest` |
 
 ## Four kinds of event

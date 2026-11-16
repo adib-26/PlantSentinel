@@ -196,6 +196,11 @@ public class TelemetryService {
         return telemetry.findLatest(machineId, count);
     }
 
+    /** Raw readings still stored with {@code from <= recorded_at <= to}, oldest first, at most {@code limit}. */
+    public List<TelemetryReading> within(UUID machineId, Instant from, Instant to, int limit) {
+        return telemetry.findWithin(machineId, from, to, limit);
+    }
+
     public TelemetryAnalysis analyze(Machine machine, Duration window) {
         return analyzer.analyze(machine.code(), machine.type(), recent(machine.id(), window));
     }

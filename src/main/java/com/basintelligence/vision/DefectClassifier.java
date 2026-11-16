@@ -54,7 +54,8 @@ public final class DefectClassifier implements AutoCloseable {
         session.close();
     }
 
-    private static String sha256(byte[] bytes) {
+    /** SHA-256 (hex) of the bytes: identifies a model file or an inspected image. */
+    static String sha256(byte[] bytes) {
         try {
             return HexFormat.of().formatHex(MessageDigest.getInstance("SHA-256").digest(bytes));
         } catch (NoSuchAlgorithmException e) {

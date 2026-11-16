@@ -25,6 +25,7 @@ import com.basintelligence.machine.Machine;
 import com.basintelligence.machine.MachineService;
 import com.basintelligence.machine.MachineType;
 import com.basintelligence.risk.PredictionService;
+import com.basintelligence.risk.PredictionVerification;
 import com.basintelligence.telemetry.TelemetryReading;
 import com.basintelligence.telemetry.TelemetryRepository;
 import com.basintelligence.telemetry.TelemetryRollupService;
@@ -32,6 +33,8 @@ import com.basintelligence.telemetry.TelemetryService;
 import com.basintelligence.telemetry.TelemetrySource;
 import com.basintelligence.telemetry.simulation.Scenario;
 import com.basintelligence.telemetry.simulation.TelemetryGenerator;
+import com.basintelligence.vision.InspectionService;
+import com.basintelligence.vision.SampleImageGenerator;
 
 /**
  * Repository tests on real PostgreSQL 17 (the engine Neon runs): Flyway migrations, SQL queries, constraints and
@@ -52,6 +55,7 @@ class PostgresRepositoryIT {
     @Autowired TelemetryService telemetry;
     @Autowired TelemetryRollupService rollups;
     @Autowired PredictionService predictions;
+    @Autowired InspectionService inspections;
     @Autowired InvestigationService investigations;
     @Autowired ManualService manuals;
 
@@ -87,6 +91,43 @@ class PostgresRepositoryIT {
                 TelemetrySource.EDGE), "ev-3")).isInstanceOf(DataIntegrityViolationException.class);
         assertThat(rollups.rollup(m.id())).isGreaterThanOrEqualTo(5);
         assertThat(rollups.rollup(m.id())).isZero(); // idempotent
+    }
+
+    @Test
+    void predictionGovernanceRecordViewAndVerificationOnPostgres() {
+        Machine m = machines.register(new MachineService.RegisterMachine("PG-03", "pg", MachineType.CNC_MILL, null), "test");
+        Instant t0 = Instant.now().minus(Duration.ofMinutes(30)); // sub-second timestamps: PostgreSQL keeps microseconds
+        var gen = new TelemetryGenerator(new Random(3), Duration.ofMinutes(30), 0);
+        for (int i = 0; i < 30; i++) {
+            telemetryRepository.insert(gen.generate(m.id(), MachineType.CNC_MILL, Scenario.BEARING_WEAR, t0,
+                    t0.plus(Duration.ofMinutes(i))));
+        }
+        long id = predictions.predict(machines.get(m.id()), PredictionService.Trigger.SCHEDULED, null).orElseThrow();
+        byte[] image = new SampleImageGenerator().generatePng(SampleImageGenerator.Kind.GOOD, 3);
+        long inspection = inspections.inspect(machines.get(m.id()), "spindle", "spindle.png", image, "engineer").id();
+
+        var verification = predictions.verify(machines.get(m.id()), id);
+        assertThat(verification.status()).isEqualTo(PredictionVerification.Status.VERIFIED);
+        assertThat(verification.checks()).allSatisfy(c ->
+                assertThat(c.outcome()).as(c.name() + ": " + c.detail()).isEqualTo(PredictionVerification.Outcome.PASS));
+
+        var rows = jdbc.sql("""
+                SELECT source_table, prediction_id, model_name, model_version, predicted_class, risk_score, input_reference,
+                       trigger_type, prediction_timestamp
+                FROM prediction_governance WHERE device_id = :d ORDER BY source_table""").param("d", m.id()).query().listOfRows();
+        assertThat(rows).extracting(r -> r.get("source_table")).containsExactly("inspections", "model_predictions");
+        assertThat(rows).extracting(r -> ((Number) r.get("prediction_id")).longValue()).containsExactly(inspection, id);
+        assertThat(rows).extracting(r -> r.get("model_name")).containsExactly("defect-detector", "failure-risk");
+        assertThat(rows).allSatisfy(r -> assertThat(r.values()).doesNotContainNull());
+        assertThat((String) rows.get(0).get("input_reference")).contains(" sha256:");
+        assertThat((String) rows.get(1).get("input_reference")).contains("features=sha256:");
+
+        // the governance fields are mandatory for every new prediction
+        assertThatThrownBy(() -> jdbc.sql("""
+                INSERT INTO model_predictions (device_id, predicted_at, trigger_type, probability, risk_level, readings_used,
+                    model_name, input_reference, contributions_json)
+                VALUES (:d, now(), 'SCHEDULED', 0.1, 'LOW', 12, 'failure-risk', 'x', '[]')""").param("d", m.id()).update())
+                .isInstanceOf(DataIntegrityViolationException.class);
     }
 
     @Test

@@ -104,7 +104,7 @@ public class InspectionService {
             Inspection.Verdict verdict = defect ? Inspection.Verdict.DEFECT : Inspection.Verdict.PASS;
             Inspection draft = new Inspection(0, machine.id(), clock.instant(), component, safeName(originalFilename),
                     original.getFileName().toString(), annotated.getFileName().toString(), probability, verdict,
-                    regions.size(), classifier.version(), inferenceMs, actor);
+                    regions.size(), classifier.version(), inferenceMs, actor, DefectClassifier.sha256(bytes));
             long id = inspections.insert(draft);
             meters.counter("bas.inspections", "verdict", verdict.name()).increment();
             com.basintelligence.common.BasMetrics.recordPrediction(meters, "defect-detector", verdict.name(), probability);

@@ -86,8 +86,8 @@ class DashboardScreensIntegrationTest {
     @Test
     void screen3PredictiveAnalytics() throws Exception {
         assertThat(page("/analytics?machine=UI-01", VIEWER)).contains("Isolation Forest score", "Failure-risk model",
-                "Hold-out ROC-AUC", "Feature importance", "Prediction history: UI-01", "failure-risk-lr v1",
-                "process-failure-classifier");
+                "Hold-out ROC-AUC", "Feature importance", "Prediction history: UI-01", "failure-risk 1.0+w",
+                "href=\"/analytics/UI-01/predictions/", "process-failure-classifier");
         assertThat(page("/analytics/UI-01/predictions.json", VIEWER)).contains("\"probability\"", "INVESTIGATION");
     }
 

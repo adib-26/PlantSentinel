@@ -28,7 +28,8 @@ public class InspectionRepository {
             rs.getInt("defect_regions"),
             rs.getString("model_version"),
             rs.getLong("inference_ms"),
-            rs.getString("inspected_by"));
+            rs.getString("inspected_by"),
+            rs.getString("image_sha256"));
 
     private final JdbcClient jdbc;
 
@@ -40,9 +41,10 @@ public class InspectionRepository {
         var keys = new GeneratedKeyHolder();
         jdbc.sql("""
                 INSERT INTO inspections (device_id, inspected_at, component, original_filename, image_path, annotated_path,
-                                        defect_probability, verdict, defect_regions, model_version, inference_ms, inspected_by)
+                                        defect_probability, verdict, defect_regions, model_version, inference_ms, inspected_by,
+                                        image_sha256)
                 VALUES (:deviceId, :at, :component, :filename, :image, :annotated,
-                        :probability, :verdict, :regions, :model, :ms, :by)""")
+                        :probability, :verdict, :regions, :model, :ms, :by, :sha)""")
                 .param("deviceId", i.machineId())
                 .param("at", utc(i.inspectedAt()))
                 .param("component", i.component())
@@ -55,6 +57,7 @@ public class InspectionRepository {
                 .param("model", i.modelVersion())
                 .param("ms", i.inferenceMs())
                 .param("by", i.inspectedBy())
+                .param("sha", i.imageSha256())
                 .update(keys, "id");
         return keys.getKey().longValue();
     }

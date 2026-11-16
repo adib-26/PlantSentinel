@@ -96,6 +96,16 @@ public class AnalyticsController {
                 "trigger", list.stream().map(p -> p.trigger().name()).toList());
     }
 
+    @GetMapping("/analytics/{code}/predictions/{id}")
+    @com.basintelligence.web.RateLimited(com.basintelligence.web.RateLimited.Kind.PREDICTION)
+    public String predictionVerification(@PathVariable String code, @PathVariable long id, Model model) {
+        Machine m = machines.getByCode(code);
+        model.addAttribute("machine", m);
+        model.addAttribute("verification", predictions.verify(m, id));
+        model.addAttribute("retention", properties.telemetry().retention().toDays());
+        return "prediction-verification";
+    }
+
     static Duration window(BasProperties p) {
         return p.telemetry().analysisWindow();
     }

@@ -72,3 +72,55 @@ in the investigation. It is the closest online signal of the agent misusing retr
    - API p95: `histogram_quantile(0.95, sum by (le) (rate(http_server_requests_seconds_bucket[5m])))`
 
 Prometheus plus Grafana adds roughly 300–500 MB of RAM, so start them only when the laptop has headroom.
+
+## Model governance
+
+Both models that score a registered machine store every prediction: failure risk in `model_predictions`
+(scheduled, anomaly-triggered, investigation or agent) and visual inspection in `inspections`. The view
+`prediction_governance` (migration V15) lists both under the governance field names. Its key is
+(`source_table`, `prediction_id`).
+
+| Field | Failure risk (`model_predictions`) | Visual inspection (`inspections`) |
+|---|---|---|
+| `source_table` | `model_predictions` | `inspections` |
+| `prediction_id` | `id` | `id` |
+| `device_id` | the machine | the machine |
+| `prediction_timestamp` | `predicted_at`, when the model ran (UTC) | `inspected_at` |
+| `model_name` | `failure-risk` | `defect-detector` |
+| `model_version` | recipe version + first 12 hex of the SHA-256 of the fitted coefficients, e.g. `1.0+w3f9a0c12b7de`. The model is retrained at startup from a seed, so the same seed and sample count give the same version; any change to the weights changes it. Bump `FailureRiskModel.RECIPE_VERSION` when the features or training change. | model file name + first 12 hex of its SHA-256, e.g. `defect-detector.onnx@82635f870d25` |
+| `predicted_class` | LOW / MEDIUM / HIGH / CRITICAL, from thresholds 0.25 / 0.5 / 0.75 on the score | PASS / DEFECT |
+| `risk_score` | model probability, 0–1 | defect probability, 0–1 |
+| `input_reference` | `telemetry[<from>/<to>] n=<readings> features=sha256:<hex>` | `image:<stored file> sha256:<hex of the uploaded bytes>` |
+| `trigger_type` | SCHEDULED / ANOMALY / INVESTIGATION / AGENT | INSPECTION |
+
+Example: `SELECT * FROM prediction_governance WHERE device_id = ? ORDER BY prediction_timestamp DESC`.
+
+### The input outlives the raw telemetry
+
+Raw telemetry is pruned after `bas.telemetry.retention` (7 days, 3 on Neon). So each failure-risk row also stores
+its input in `input_json`: the window, the reading count, the mean of each channel and the feature digest
+(about 300 bytes). The feature values themselves are in `contributions_json`. Inspection images are kept on disk
+without a retention limit.
+
+### Checking a stored prediction
+
+`GET /api/machines/{code}/predictions` lists the stored predictions with these fields. On the analytics page, the
+*check* link next to each prediction, or `GET /api/machines/{code}/predictions/{id}/verification`, runs these checks:
+
+| Check | Passes when |
+|---|---|
+| risk class | `predicted_class` follows from `risk_score` |
+| input record | `input_json`, `input_reference` and `readings_used` agree |
+| feature digest | the feature values in `contributions_json` hash to the digest in `input_reference` and `input_json` |
+| feature engineering | today's feature code and the machine type's nominal values turn the recorded channel means into the same features |
+| model re-score | the running model has the same version and gives the same score. Skipped when the version differs. |
+| raw telemetry | the readings in the window are still stored and reproduce the features. Skipped once retention has pruned them; fails if readings inside the retention period were changed, removed or added. |
+
+The result is `VERIFIED` (nothing failed), `MISMATCH` (something failed) or `UNVERIFIABLE`. The last applies to
+rows written before V15, which have `model_version = 'unrecorded'`, no window and no `input_json`. Inspections
+stored before V15 have no image digest. A passing check shows that the record is intact and reproducible. It
+does not show that the estimate was right: the risk model is trained on simulated fault data.
+
+The ML-lab endpoints (process failure, RUL, bearing) score data that the caller sends, not a registered machine, so
+they are not stored. The process-failure and RUL responses include the model version, and the model cards list
+every version.

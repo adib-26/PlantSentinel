@@ -25,6 +25,8 @@ import com.basintelligence.analytics.TelemetryAnalysis;
 import com.basintelligence.common.NotFoundException;
 import com.basintelligence.machine.Machine;
 import com.basintelligence.machine.MachineService;
+import com.basintelligence.risk.PredictionService;
+import com.basintelligence.risk.PredictionVerification;
 import com.basintelligence.risk.RiskAssessment;
 import com.basintelligence.risk.RiskService;
 import com.basintelligence.telemetry.TelemetryService;
@@ -51,10 +53,12 @@ public class MachineApiController {
     private final InspectionService inspections;
     private final com.basintelligence.failure.FailureEventService failures;
     private final com.basintelligence.telemetry.SensorFaultService sensorFaults;
+    private final PredictionService predictions;
 
     public MachineApiController(MachineService machines, TelemetryService telemetry, RiskService risk,
             InspectionService inspections, com.basintelligence.failure.FailureEventService failures,
-            com.basintelligence.telemetry.SensorFaultService sensorFaults) {
+            com.basintelligence.telemetry.SensorFaultService sensorFaults, PredictionService predictions) {
+        this.predictions = predictions;
         this.failures = failures;
         this.sensorFaults = sensorFaults;
         this.machines = machines;
@@ -101,6 +105,21 @@ public class MachineApiController {
     @Operation(summary = "Explainable failure-risk estimate")
     public RiskAssessment risk(@PathVariable String code) {
         return risk.assess(machines.getByCode(code)).orElseThrow(() -> new NotFoundException("No telemetry yet for " + code));
+    }
+
+    @GetMapping("/{code}/predictions")
+    @Operation(summary = "Stored failure-risk predictions with model version and input reference, newest first")
+    public List<PredictionService.Prediction> predictions(@PathVariable String code,
+            @RequestParam(defaultValue = "50") @Min(1) @Max(500) int limit) {
+        return predictions.recent(machines.getByCode(code).id(), limit);
+    }
+
+    @GetMapping("/{code}/predictions/{id}/verification")
+    @com.basintelligence.web.RateLimited(com.basintelligence.web.RateLimited.Kind.PREDICTION)
+    @Operation(summary = "Check a stored prediction against its recorded input, the running model and the raw "
+            + "telemetry still kept")
+    public PredictionVerification verifyPrediction(@PathVariable String code, @PathVariable long id) {
+        return predictions.verify(machines.getByCode(code), id);
     }
 
     public record ConfirmFailure(@jakarta.validation.constraints.NotNull com.basintelligence.failure.FailureEventService.FailureMode mode,

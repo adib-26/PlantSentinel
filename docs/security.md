@@ -57,7 +57,7 @@ the same number). Exceeding it returns **429** with `Retry-After`, and the rejec
 |---|---|---|
 | investigation | 10 | `POST /api/machines/{code}/investigations`, `POST /machines/{code}/investigations`, `POST /assistant/ask` |
 | inspection | 20 | `POST /api/machines/{code}/inspections`, `POST /machines/{code}/inspections[/sample]` |
-| prediction | 60 | `GET /api/machines/{code}/risk`, `GET /api/machines/{code}/analysis`, `POST /api/ml/*` |
+| prediction | 60 | `GET /api/machines/{code}/risk`, `GET /api/machines/{code}/analysis`, `GET /api/machines/{code}/predictions/{id}/verification`, `GET /analytics/{code}/predictions/{id}`, `POST /api/ml/*` |
 | search | 60 | `GET /api/manuals/search` |
 
 MCP calls keep their own limit of 60 per minute per session. Limits apply per application instance.

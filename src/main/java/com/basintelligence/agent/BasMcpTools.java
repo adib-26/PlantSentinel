@@ -259,7 +259,8 @@ public class BasMcpTools {
         Optional<RiskAssessment> assessment = risk.assess(m);
         assessment.ifPresent(a -> predictions.record(m, a, PredictionService.Trigger.AGENT, null));
         return new RiskPrediction(m.code(),
-                Labeled.of(EvidenceClass.MODEL_PREDICTION, risk.modelInfo().algorithm() + ", hold-out AUC "
+                Labeled.of(EvidenceClass.MODEL_PREDICTION, risk.modelInfo().algorithm() + " " + risk.modelInfo().name()
+                        + " " + risk.modelInfo().version() + ", hold-out AUC "
                         + Text.num(risk.modelInfo().holdoutAuc(), 3), assessment.orElse(null)),
                 Labeled.of(EvidenceClass.MODEL_PREDICTION, "model_predictions table", predictions.recent(m.id(), 10)),
                 List.of("Trained on " + risk.modelInfo().trainingData() + ", not on this plant's failure history.",

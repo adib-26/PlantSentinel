@@ -103,9 +103,9 @@ public class Formatters {
             return "secondary";
         }
         return switch (status.toString()) {
-            case "NORMAL", "LOW", "PASS", "APPROVED", "CLOSED", "COMPLETED", "ONLINE", "SUCCESS", "MEASURED", "EDGE" -> "success";
+            case "NORMAL", "LOW", "PASS", "APPROVED", "CLOSED", "COMPLETED", "ONLINE", "SUCCESS", "MEASURED", "EDGE", "VERIFIED" -> "success";
             case "WARNING", "MEDIUM", "PROPOSED", "OPEN", "STALE", "AI_INTERPRETATION", "SIMULATOR" -> "warning";
-            case "CRITICAL", "HIGH", "URGENT", "DEFECT", "REJECTED", "OFFLINE", "ERROR", "DENIED" -> "danger";
+            case "CRITICAL", "HIGH", "URGENT", "DEFECT", "REJECTED", "OFFLINE", "ERROR", "DENIED", "MISMATCH", "FAIL" -> "danger";
             case "REVIEWED", "PLANNED", "MODEL_PREDICTION", "RULE_BASED", "DOCUMENTED" -> "info";
             default -> "secondary";
         };

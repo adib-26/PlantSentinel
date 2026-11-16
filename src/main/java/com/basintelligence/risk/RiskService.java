@@ -1,6 +1,7 @@
 package com.basintelligence.risk;
 
 import java.time.Clock;
+import java.time.Instant;
 import java.util.List;
 import java.util.Optional;
 
@@ -17,7 +18,7 @@ public class RiskService {
     /** Roughly the last few minutes of data, averaged to smooth sensor noise. */
     static final int READINGS_FOR_ASSESSMENT = 12;
     /** Metric tag for the failure-risk model. */
-    public static final String MODEL_NAME = "failure-risk";
+    public static final String MODEL_NAME = FailureRiskModel.NAME;
 
     private final FailureRiskModel model;
     private final TelemetryService telemetry;
@@ -37,10 +38,23 @@ public class RiskService {
         if (readings.isEmpty()) {
             return Optional.empty();
         }
-        double[] features = RiskFeatures.fromReadings(machine.type(), readings);
+        RiskAssessment.ChannelMeans means = RiskFeatures.means(readings);
+        double[] features = RiskFeatures.fromMeans(machine.type(), means);
         double p = com.basintelligence.common.BasMetrics.timeInference(meters, MODEL_NAME, () -> model.probability(features));
+        var input = new RiskAssessment.InputReference(
+                readings.stream().map(TelemetryReading::recordedAt).min(Instant::compareTo).orElseThrow(),
+                readings.stream().map(TelemetryReading::recordedAt).max(Instant::compareTo).orElseThrow(),
+                readings.size(), means, RiskFeatures.sha256(features));
         return Optional.of(new RiskAssessment(machine.code(), clock.instant(), p, RiskLevel.of(p), model.explain(features),
-                readings.size(), model.info()));
+                readings.size(), model.info(), input));
+    }
+
+    /**
+     * Scores a stored feature vector with the running model, to check an earlier prediction. Not counted as an
+     * inference in the metrics.
+     */
+    public double rescore(double[] features) {
+        return model.probability(features);
     }
 
     /** Global feature importance of the linear risk model: its coefficient per feature (log-odds per unit). */

@@ -1,0 +1,50 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org">
+<head th:replace="~{fragments :: head('Prediction check')}"></head>
+<body>
+<nav th:replace="~{fragments :: nav}"></nav>
+<main class="container-fluid px-4" th:with="v=${verification}">
+    <p class="small mb-1"><a th:href="@{/analytics(machine=${machine.code()})}">← Predictive analytics</a></p>
+    <h1 class="h3 mb-1">
+        <span th:text="${'Prediction ' + v.predictionId() + ': ' + v.machineCode()}">Prediction 1: CNC-01</span>
+        <span th:replace="~{fragments :: badge(${v.status()})}"></span>
+    </h1>
+    <p class="text-secondary">Checks the stored record against itself, the running model and any raw readings still
+        kept. Raw telemetry is kept <span th:text="${retention}">7</span> days; after that the recorded channel means and
+        features are the evidence. This is a <span class="badge text-bg-info">model prediction</span> from a model trained
+        on simulated fault data, so a passing check shows the record is intact, not that the estimate was right.</p>
+
+    <div class="row g-3">
+        <div class="col-xl-5">
+            <div class="card h-100"><div class="card-body">
+                <h2 class="h5">Governance record</h2>
+                <table class="table table-sm small mb-0">
+                    <tbody>
+                    <tr><th>Prediction time</th><td th:text="${@fmt.time(v.predictedAt())}">t</td></tr>
+                    <tr><th>Model</th><td th:text="${v.modelName()}">failure-risk</td></tr>
+                    <tr><th>Model version</th><td><code th:text="${v.modelVersion()}">1.0+w…</code></td></tr>
+                    <tr><th>Input reference</th><td class="text-break"><code class="small" th:text="${v.inputReference()}">telemetry[…]</code></td></tr>
+                    </tbody>
+                </table>
+            </div></div>
+        </div>
+        <div class="col-xl-7">
+            <div class="card h-100"><div class="card-body">
+                <h2 class="h5">Checks</h2>
+                <table class="table table-sm small mb-0">
+                    <thead><tr><th>Check</th><th>Result</th><th>Detail</th></tr></thead>
+                    <tbody>
+                    <tr th:each="c : ${v.checks()}">
+                        <td class="text-nowrap" th:text="${c.name()}">feature digest</td>
+                        <td><span th:replace="~{fragments :: badge(${c.outcome()})}"></span></td>
+                        <td class="text-break" th:text="${c.detail()}">detail</td>
+                    </tr>
+                    </tbody>
+                </table>
+            </div></div>
+        </div>
+    </div>
+</main>
+<th:block th:replace="~{fragments :: scripts}"></th:block>
+</body>
+</html>

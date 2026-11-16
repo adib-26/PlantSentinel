@@ -48,15 +48,16 @@
                     <canvas id="prediction-chart" th:attr="data-url=@{/analytics/{c}/predictions.json(c=${selected.machine().code()})}"></canvas>
                 </div>
                 <table class="table table-sm small mt-2 mb-0">
-                    <thead><tr><th>Time</th><th>Trigger</th><th class="text-end">Probability</th><th>Level</th><th>Model</th><th>Anomaly event</th></tr></thead>
+                    <thead><tr><th>Time</th><th>Trigger</th><th class="text-end">Probability</th><th>Level</th><th>Model</th><th>Anomaly event</th><th></th></tr></thead>
                     <tbody>
                     <tr th:each="p : ${history}">
                         <td class="text-nowrap" th:text="${@fmt.time(p.predictedAt())}">t</td>
                         <td th:text="${p.trigger()}">SCHEDULED</td>
                         <td class="text-end" th:text="${@fmt.pct(p.probability())}">10%</td>
                         <td><span th:replace="~{fragments :: badge(${p.level()})}"></span></td>
-                        <td th:text="${p.modelName()}">LR</td>
+                        <td th:text="${p.modelName() + ' ' + p.modelVersion()}" th:title="${p.inputReference()}">failure-risk 1.0</td>
                         <td th:text="${p.anomalyEventId() ?: '–'}">–</td>
+                        <td><a th:href="@{/analytics/{c}/predictions/{id}(c=${selected.machine().code()},id=${p.id()})}">check</a></td>
                     </tr>
                     </tbody>
                 </table>
@@ -92,7 +93,8 @@
                 <h2 class="h5">Failure-risk model</h2>
                 <table class="table table-sm small">
                     <tbody>
-                    <tr><th>Model version</th><td>failure-risk-lr v1 (retrained at startup, seed 42)</td></tr>
+                    <tr><th>Model version</th><td><code th:text="${riskModel.name() + ' ' + riskModel.version()}">failure-risk 1.0+w…</code>
+                        <span class="text-secondary">(retrained at startup from a fixed seed)</span></td></tr>
                     <tr><th>Algorithm</th><td th:text="${riskModel.algorithm()}">LR</td></tr>
                     <tr><th>Training data</th><td th:text="${riskModel.trainingData() + ', ' + riskModel.trainingSamples() + ' samples'}">synthetic</td></tr>
                     <tr><th>Hold-out accuracy</th><td th:text="${@fmt.num(riskModel.holdoutAccuracy(), 3)}">0.87</td></tr>

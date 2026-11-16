@@ -75,6 +75,20 @@ public class TelemetryRepository {
         return findBetween(deviceId, since, Instant.parse("9999-12-31T00:00:00Z"));
     }
 
+    /** At most {@code limit} readings with {@code from <= recorded_at <= to}, in chronological order. */
+    public List<TelemetryReading> findWithin(UUID deviceId, Instant from, Instant to, int limit) {
+        return jdbc.sql("""
+                SELECT * FROM telemetry
+                WHERE device_id = :deviceId AND recorded_at >= :from AND recorded_at <= :to
+                ORDER BY recorded_at LIMIT :limit""")
+                .param("deviceId", deviceId)
+                .param("from", utc(from))
+                .param("to", utc(to))
+                .param("limit", limit)
+                .query(MAPPER)
+                .list();
+    }
+
     /** The {@code limit} readings strictly before {@code before}, in chronological order. */
     public List<TelemetryReading> findLatestBefore(UUID deviceId, Instant before, int limit) {
         List<TelemetryReading> rows = new ArrayList<>(jdbc.sql("""
