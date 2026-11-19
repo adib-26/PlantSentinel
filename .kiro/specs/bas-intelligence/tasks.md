@@ -102,7 +102,8 @@
   - [x] 17.1 Factory overview KPIs, risk summary, active alerts, recent maintenance
   - [x] 17.2 Machine monitoring: connectivity and data-quality calculator, historical readings
   - [x] 17.3 Predictive analytics page with prediction history chart, contributions, model performance and importance
-  - [x] 17.4 Kiro assistant page; investigation page with evidence map, linked citations, tool trace, limitations
+  - [x] 17.4 Report page (formerly the Kiro assistant page); investigation page with evidence map, linked citations, tool trace, limitations
+  - [x] 17.4a Kiro assistant page: conversation with Kiro CLI run by the server per message, with a per-run MCP token scoped to the engineer
   - [x] 17.5 Maintenance management with technician role, assignment, completion rules, approvals and audit trail
   - [x] 17.6 Knowledge management with document detail, sections, page numbers and citing investigations
   - [x] 17.7 V11 migration (evidence → document section, investigation → tool call, work-order assignment); UI test of all screens

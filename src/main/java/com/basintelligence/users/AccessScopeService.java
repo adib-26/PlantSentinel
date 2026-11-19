@@ -13,6 +13,8 @@ import org.springframework.stereotype.Service;
 import org.springframework.web.context.request.RequestAttributes;
 import org.springframework.web.context.request.RequestContextHolder;
 
+import com.basintelligence.common.AgentRun;
+
 /**
  * Resolves the {@link AccessScope} of the current caller from the Spring Security context.
  * <p>
@@ -54,12 +56,33 @@ public class AccessScopeService {
         Set<String> roles = auth.getAuthorities().stream().map(GrantedAuthority::getAuthority)
                 .filter(a -> a.startsWith("ROLE_")).map(a -> a.substring(5)).collect(Collectors.toSet());
         if (roles.contains("AGENT")) {
+            if (auth.getDetails() instanceof AgentRun run) {
+                return delegated(run.username()); // a Kiro assistant run sees what its engineer sees
+            }
             return AccessScope.ALL; // the Kiro agent key is plant-wide; it can only read and propose
         }
         if (roles.contains("EDGE")) {
             return AccessScope.NONE; // gateways only ingest; their factory is checked by the ingestion endpoint
         }
         return AccessScope.forPerson(auth.getName(), roles, factoryOf(auth.getName()));
+    }
+
+    /**
+     * The scope of the engineer a Kiro assistant run works for, read from the database on every request, so a run of
+     * an account that was disabled or lost its engineer role meanwhile sees nothing.
+     */
+    private AccessScope delegated(String username) {
+        return jdbc.sql("SELECT roles, factory_id FROM users WHERE username = :u AND enabled = TRUE")
+                .param("u", username)
+                .query((rs, n) -> {
+                    Set<String> roles = java.util.Arrays.stream(rs.getString("roles").split(",")).map(String::strip)
+                            .collect(Collectors.toSet());
+                    if (!roles.contains("ENGINEER") && !roles.contains("ADMIN")) {
+                        return AccessScope.NONE;
+                    }
+                    return AccessScope.forPerson(username, roles, rs.getObject("factory_id", UUID.class));
+                })
+                .optional().orElse(AccessScope.NONE);
     }
 
     private UUID factoryOf(String username) {

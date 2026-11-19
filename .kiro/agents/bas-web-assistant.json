@@ -1,0 +1,56 @@
+{
+  "name": "bas-web-assistant",
+  "description": "Kiro assistant of the BAS Intelligence web app. The server starts it for one engineer's message. It reads machine data and writes reports through the BAS Intelligence MCP tools only, with a short-lived credential that limits it to that engineer's machines. It has no shell, file or web tools and cannot create maintenance drafts.",
+  "prompt": "file://./prompts/bas-web-assistant.md",
+  "model": "auto",
+  "mcpServers": {
+    "bas-intelligence": {
+      "url": "http://localhost:8080/mcp",
+      "headers": {
+        "X-API-Key": "${BAS_RUN_TOKEN}"
+      },
+      "timeout": 60000
+    }
+  },
+  "includeMcpJson": false,
+  "tools": [
+    "@bas-intelligence/machine_get_status",
+    "@bas-intelligence/machine_get_telemetry",
+    "@bas-intelligence/machine_detect_anomaly",
+    "@bas-intelligence/machine_get_failure_prediction",
+    "@bas-intelligence/machine_get_history",
+    "@bas-intelligence/machine_get_specifications",
+    "@bas-intelligence/maintenance_search_manual",
+    "@bas-intelligence/maintenance_generate_report"
+  ],
+  "permissions": {
+    "rules": [
+      {
+        "capability": "mcp",
+        "match": [
+          "bas-intelligence/machine_get_status",
+          "bas-intelligence/machine_get_telemetry",
+          "bas-intelligence/machine_detect_anomaly",
+          "bas-intelligence/machine_get_failure_prediction",
+          "bas-intelligence/machine_get_history",
+          "bas-intelligence/machine_get_specifications",
+          "bas-intelligence/maintenance_search_manual",
+          "bas-intelligence/maintenance_generate_report"
+        ],
+        "effect": "allow"
+      },
+      {
+        "capability": "mcp",
+        "match": [
+          "bas-intelligence/maintenance_create_draft"
+        ],
+        "effect": "deny"
+      },
+      {
+        "capability": "builtin",
+        "effect": "deny"
+      }
+    ]
+  },
+  "welcomeMessage": "Started by the BAS Intelligence web app for one engineer's message."
+}

@@ -24,8 +24,10 @@ Every response carries `X-Request-Id`, which matches `requestId` in the logs. A 
 | Telemetry ingestion rate | `bas.telemetry.ingestion.rate` (gauge, readings in the last 60 s), `bas.telemetry.readings{source}`, `bas.telemetry.ingest.duration{source}`, `bas.edge.batch.size` | `TelemetryService`, `EdgeTelemetryController` | the gauge gives a rate without Prometheus |
 | Invalid telemetry count | `bas.telemetry.invalid{reason}`: `MISSING_VALUE`, `IMPOSSIBLE_VALUE`, `STUCK_VALUE`, `INVALID_TIMESTAMP`, `UNKNOWN_MACHINE`, `DUPLICATE`, `MALFORMED_BATCH` | `SensorFaultService`, `TelemetryService`, `EdgeTelemetryController`, `ApiExceptionHandler` | sensor faults count once per faulty channel |
 | ML inference latency | `bas.inference{model}`: `failure-risk`, `defect-detector`, `process-failure-classifier`, `remaining-useful-life-regressor`, `bearing-anomaly-detector` | `RiskService`, `InspectionService`, `MlPredictionService` | p50/p95/p99 |
-| Prediction distribution | `bas.predictions{model,outcome}` (risk level, failure or not, anomalous or not, PASS/DEFECT, RUL band); `bas.prediction.probability{model}` with buckets every 0.1; `bas.prediction.rul.cycles` | `PredictionService`, `InspectionService`, `MlPredictionService` | risk predictions are counted when stored (scheduled, anomaly-triggered, investigation), not on every page view |
+| Prediction distribution | `bas.predictions{model,outcome}` (risk level, failure or not, anomalous or not, bearing condition, PASS/DEFECT, RUL band); `bas.prediction.probability{model}` with buckets every 0.1; `bas.prediction.rul.cycles` | `PredictionService`, `InspectionService`, `MlPredictionService` | risk predictions are counted when stored (scheduled, anomaly-triggered, investigation), not on every page view |
+| Stored predictions deleted | `bas.predictions.removed{table,reason}`: `model_predictions` / `ml_predictions`, `retention` / `row_limit` | `PredictionService`, `MlPredictionLog` | any `row_limit` count means rows went before their retention period ended; see [Retention and row limits](#retention-and-row-limits) |
 | Kiro request latency | `bas.agent.tool.duration{tool,outcome}`; `http.server.requests{uri=/mcp}` | `AuditingToolCallback` | SLO buckets 100 ms to 30 s |
+| Kiro assistant runs | `bas.assistant.messages{outcome}` (DONE, FAILED, TIMED_OUT, CANCELLED); `bas.assistant.duration`; `bas.assistant.credits` | `KiroAssistantService` | credits are what Kiro CLI reports per run on the server's Kiro login |
 | Kiro token usage | `bas.agent.tokens.estimated{direction,tool}` | `AuditingToolCallback` | **estimate** at about 4 characters per token. It covers only what tool arguments (input) and results (output) add to Kiro's context. Kiro's own prompt and completion tokens are billed in Kiro and are not visible to this server. |
 | Tool failure count | `bas.agent.tool.calls{tool,outcome}`: `SUCCESS`, `ERROR`, `TIMEOUT`, `DENIED` | `AuditingToolCallback` | failures are everything except SUCCESS; details per call stay in `agent_tool_audit` (Agent activity page) |
 | RAG retrieval quality | online: `bas.rag.searches{retriever,outcome=hit/empty}`, `bas.rag.search.duration`, `bas.rag.top.score`, `bas.rag.citations{verified}`; benchmark gauges: `bas.rag.eval.hit.at.1`, `bas.rag.eval.recall.at.3`, `bas.rag.eval.mrr` | `ManualService`, `InvestigationService`, `RetrievalQualityMonitor` | see below |
@@ -75,10 +77,11 @@ Prometheus plus Grafana adds roughly 300–500 MB of RAM, so start them only whe
 
 ## Model governance
 
-Both models that score a registered machine store every prediction: failure risk in `model_predictions`
-(scheduled, anomaly-triggered, investigation or agent) and visual inspection in `inspections`. The view
-`prediction_governance` (migration V15) lists both under the governance field names. Its key is
-(`source_table`, `prediction_id`).
+Every model prediction is stored: failure risk in `model_predictions` (scheduled, anomaly-triggered,
+investigation, agent, or a `GET /api/machines/{code}/risk` call), visual inspection in `inspections`, and the
+ML-lab endpoints (`POST /api/ml/*`) in `ml_predictions`. The view `prediction_governance` (migrations V15, V16)
+lists all three under the governance field names. Its key is (`source_table`, `prediction_id`). Only the dashboard,
+machine and analytics pages compute risk without storing it, because every page load would add a row per machine.
 
 | Field | Failure risk (`model_predictions`) | Visual inspection (`inspections`) |
 |---|---|---|
@@ -90,10 +93,71 @@ Both models that score a registered machine store every prediction: failure risk
 | `model_version` | recipe version + first 12 hex of the SHA-256 of the fitted coefficients, e.g. `1.0+w3f9a0c12b7de`. The model is retrained at startup from a seed, so the same seed and sample count give the same version; any change to the weights changes it. Bump `FailureRiskModel.RECIPE_VERSION` when the features or training change. | model file name + first 12 hex of its SHA-256, e.g. `defect-detector.onnx@82635f870d25` |
 | `predicted_class` | LOW / MEDIUM / HIGH / CRITICAL, from thresholds 0.25 / 0.5 / 0.75 on the score | PASS / DEFECT |
 | `risk_score` | model probability, 0–1 | defect probability, 0–1 |
+| `predicted_value` | NULL | NULL |
 | `input_reference` | `telemetry[<from>/<to>] n=<readings> features=sha256:<hex>` | `image:<stored file> sha256:<hex of the uploaded bytes>` |
-| `trigger_type` | SCHEDULED / ANOMALY / INVESTIGATION / AGENT | INSPECTION |
+| `trigger_type` | SCHEDULED / ANOMALY / INVESTIGATION / AGENT / API | INSPECTION |
 
 Example: `SELECT * FROM prediction_governance WHERE device_id = ? ORDER BY prediction_timestamp DESC`.
+
+### ML-lab predictions
+
+The ML-lab endpoints score data that the caller sends. Add `?machine=<code>` to link the stored rows to a machine
+(404 if the caller cannot see it); without it, `device_id` is NULL. Each response item carries the id of its stored
+row: `predictionId` for process failure and RUL, `anomalyPredictionId` and `conditionPredictionId` per bearing
+window. `model_version` is the card version + first 12 hex of the artifact SHA-256, e.g. `1.0.0+355bad0b9685`; the
+registry only serves an artifact whose checksum matches its card. The responses' `modelVersion` uses the same form.
+`trigger_type` is `API`, `requested_by` the user, and `request_id` groups the rows of one call.
+
+`risk_score` is always the model's own 0–1 score for the bad outcome, and `predicted_class` follows from it and the
+model's threshold. When a model has no such score, `risk_score` is NULL; nothing is derived to fill it.
+`predicted_value` holds a regression's output and is NULL for every other model.
+
+| Model | Rows | `predicted_class` | `risk_score` | `input_reference` |
+|---|---|---|---|---|
+| `process-failure-classifier` | one per batch item | `failure` when `risk_score` ≥ the card threshold, else `no_failure` | failure probability | the input itself: `process[type=M airTempK=298.1 processTempK=308.6 rpm=1551.0 torqueNm=42.8 toolWearMin=0.0]` |
+| `remaining-useful-life-regressor` | one per request | `0-30_cycles` / `31-60_cycles` / `over_60_cycles` | NULL: a regression has no probability. The cycles are in `predicted_value`. | `cycles n=<cycles> x 21 sensors sha256:<hex>` |
+| `bearing-anomaly-detector` | one per 1024-sample window | `anomalous` when `risk_score` > the card threshold, else `normal` | Isolation Forest anomaly score, 0–1 | `vibration[<from>,<to>) of <n> samples sha256:<hex>` |
+| `bearing-fault-classifier` | one per window | the most probable of `normal` / `inner_race` / `ball` / `outer_race` | NULL (see below). The four class probabilities are in `ml_predictions.probabilities_json`, in that order. | same as the detector row of that window |
+
+The fault classifier has no risk score because the ML lab evaluated only its most-probable-class decision. It chose
+no fault threshold on validation data and did not check calibration, so a derived number such as 1 − P(`normal`)
+would be an unvalidated score. That number can also contradict the class: with P(`normal`) = 0.45 and the rest
+spread over three faults, the class is `normal` but 1 − P(`normal`) is 0.55. Whether a window is abnormal is the
+detector's job; its row for the same window (same `request_id` and `item_index`) has a validated threshold.
+
+The digests are SHA-256 over the values as 8-byte big-endian IEEE 754 doubles in request order (for RUL, cycle by
+cycle, s1..s21 within a cycle), so a caller that kept its input can confirm which request a row came from. The
+classes are the same labels as the `bas.predictions` metric outcomes.
+
+### Retention and row limits
+
+Stored predictions are deleted by two hourly jobs, which pause like the other background jobs while nobody uses the
+app. A row is deleted when it is older than its table's retention period or, past the table's row limit, when it is
+among the oldest rows. Failure-risk predictions that an investigation (`investigations.prediction_id`) or a confirmed
+failure (`failure_events.prior_prediction_id`) refers to are never deleted. They are the evidence those records were
+based on, and the failure link is how predictions are checked against reality. Deletes run in statements of at most
+5,000 ids, and migration V17 indexes the columns they search.
+
+| Setting | Table | Default | Neon profile |
+|---|---|---|---|
+| `bas.predictions.retention` | `model_predictions` | 90 days | 90 days |
+| `bas.predictions.max-rows` | `model_predictions`, checked hourly | 200,000 | 100,000 |
+| `bas.predictions.ml-retention` | `ml_predictions` | 30 days | 30 days |
+| `bas.predictions.ml-max-rows` | `ml_predictions`, checked after every write and hourly | 200,000 | 50,000 |
+
+The age limit alone does not bound storage. One process-failure call writes up to 1,000 rows, and the prediction
+rate limit allows 60 calls per minute per user, so one user could add about 60,000 rows (about 30 MB) per minute.
+The row limits bound the worst case instead. On PostgreSQL 17 a failure-risk row takes about 1.8 KB and an ML-lab
+row about 0.5 KB, indexes included. That puts the Neon limits at about 0.2 GB of the free plan's 1 GB per project,
+and the defaults at about 0.46 GB. Because `ml_predictions` is checked after every write, it never holds more than its
+limit, except briefly while concurrent calls are still writing. Failure-risk writes are one row per call, so an hourly
+check is enough. The row limits must be at least 1,000, the largest single call, so a call never deletes its own
+rows.
+
+At the row limit, rows are deleted before their retention period ends. Each deletion is counted in
+`bas.predictions.removed{table, reason}`, where `reason` is `retention` or `row_limit`. Any `row_limit` count means
+the limit was reached, and the log also gets a warning (for `ml_predictions`, at most one per hour). Raise the limit
+if storage allows. Once a prediction is deleted, its verification link answers 404.
 
 ### The input outlives the raw telemetry
 
@@ -104,7 +168,9 @@ without a retention limit.
 
 ### Checking a stored prediction
 
-`GET /api/machines/{code}/predictions` lists the stored predictions with these fields. On the analytics page, the
+`GET /api/machines/{code}/predictions` lists the stored failure-risk predictions under the governance names in
+camelCase: `predictionId`, `deviceId`, `predictionTimestamp`, `modelName`, `modelVersion`, `predictedClass`,
+`riskScore`, `inputReference` (plus `trigger`, `anomalyEventId` and `readingsUsed`). On the analytics page, the
 *check* link next to each prediction, or `GET /api/machines/{code}/predictions/{id}/verification`, runs these checks:
 
 | Check | Passes when |
@@ -119,8 +185,6 @@ without a retention limit.
 The result is `VERIFIED` (nothing failed), `MISMATCH` (something failed) or `UNVERIFIABLE`. The last applies to
 rows written before V15, which have `model_version = 'unrecorded'`, no window and no `input_json`. Inspections
 stored before V15 have no image digest. A passing check shows that the record is intact and reproducible. It
-does not show that the estimate was right: the risk model is trained on simulated fault data.
-
-The ML-lab endpoints (process failure, RUL, bearing) score data that the caller sends, not a registered machine, so
-they are not stored. The process-failure and RUL responses include the model version, and the model cards list
-every version.
+does not show that the estimate was right: the risk model is trained on simulated fault data. The verification
+endpoint covers failure-risk predictions only; ML-lab rows are checked by recomputing the digest or re-scoring the
+recorded process input.

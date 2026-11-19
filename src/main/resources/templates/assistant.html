@@ -6,73 +6,124 @@
 <main class="container-fluid px-4">
     <div th:replace="~{fragments :: flash}"></div>
     <h1 class="h3 mb-1">Kiro assistant</h1>
-    <p class="text-secondary mb-3">Ask about a machine in plain language. Every answer opens as an investigation that shows
-        which readings, model predictions and manual sections it used.</p>
+    <p class="text-secondary mb-3">Talk to Kiro about your machines. Kiro reads the plant data through the BAS Intelligence MCP
+        tools, sees only the machines you can see, and stores each investigation as a report. It cannot create maintenance
+        drafts or approve anything.</p>
+    <div th:unless="${availability.available()}" class="alert alert-warning">
+        The Kiro assistant is not available: <span th:text="${availability.reason()}">reason</span>
+    </div>
     <div class="row g-3">
-        <div class="col-xl-5">
+        <div class="col-xl-3">
             <div class="card mb-3"><div class="card-body">
-                <h2 class="h5">Ask a question</h2>
-                <form sec:authorize="hasRole('ENGINEER')" th:action="@{/assistant/ask}" method="post">
-                    <textarea name="question" class="form-control mb-2" rows="3" maxlength="1000" required
-                              placeholder="Why is CNC-01 showing a high failure risk?"></textarea>
-                    <div class="d-flex gap-2">
-                        <select name="machineCode" class="form-select" style="max-width:16rem">
-                            <option value="">Machine named in the question</option>
-                            <option th:each="m : ${machines}" th:value="${m.code()}" th:text="${m.code() + ' · ' + m.name()}">m</option>
-                        </select>
-                        <button class="btn btn-primary" type="submit">Investigate</button>
-                    </div>
-                </form>
-                <p sec:authorize="!hasRole('ENGINEER')" class="text-secondary small">Read-only users can browse the history; engineers can ask.</p>
-                <div class="small mt-2">Try:
-                    <span th:each="e : ${examples}" class="badge text-bg-light border me-1 fw-normal" th:text="${e}">ex</span>
+                <div class="d-flex justify-content-between align-items-center mb-2">
+                    <h2 class="h5 mb-0">Conversations</h2>
+                    <a sec:authorize="hasRole('ENGINEER')" class="btn btn-sm btn-outline-primary" th:href="@{/assistant}">New</a>
                 </div>
-            </div></div>
-            <div class="card mb-3"><div class="card-body small">
-                <h2 class="h5">Two ways to get an answer</h2>
-                <p class="mb-2"><strong>Here in the browser</strong>, BAS Intelligence runs its Java investigation pipeline:
-                    telemetry trends, anomaly detectors, the risk model, inspections and manual retrieval, then fault-signature
-                    rules. It is deterministic and uses no language model.</p>
-                <p class="mb-2"><strong>In Kiro</strong>, the agent calls the same tools over MCP and adds its own written
-                    interpretation, shown as <span class="badge text-bg-warning">AI interpretation</span> with the full tool trace.</p>
-                <pre class="bg-light border rounded p-2 mb-1"><code>./mcp/kiro-demo.sh
-# or in Kiro CLI:  kiro-cli chat --v3 --agent bas-investigator
-#                  /investigate_machine CNC-01</code></pre>
-                <span class="text-secondary">Either way, recommendations are only proposals until an engineer approves them.</span>
-            </div></div>
-            <div class="card"><div class="card-body small">
-                <h2 class="h5">Recent agent sessions</h2>
-                <ul class="list-unstyled mb-0">
-                    <li th:each="s : ${sessions}" th:text="${(s.clientName() ?: 'unknown client') + ' · ' + s.toolCalls() + ' tool calls · ' + @fmt.ago(s.lastSeenAt())}">s</li>
-                    <li th:if="${sessions.isEmpty()}" class="text-secondary">No MCP sessions yet.</li>
+                <ul class="list-unstyled small mb-0">
+                    <li th:each="c : ${conversations}" class="mb-1">
+                        <a th:href="@{/assistant/conversations/{id}(id=${c.id()})}" th:text="${c.title()}"
+                           th:classappend="${view != null and view.conversation().id() == c.id()} ? 'fw-semibold'">title</a>
+                        <div class="text-secondary" th:text="${@fmt.ago(c.updatedAt())}">ago</div>
+                    </li>
+                    <li th:if="${conversations.isEmpty()}" class="text-secondary">No conversations yet.<span class="costume-only"> The spirits are waiting.</span></li>
                 </ul>
             </div></div>
+            <div class="card"><div class="card-body small">
+                <h2 class="h5">How it works</h2>
+                <p class="mb-2">Each message runs Kiro CLI on this server with the <code>bas-web-assistant</code> agent and the
+                    <strong>Auto</strong> model, which picks a model per task. It uses the Kiro login of the server and its
+                    credits. Kiro gets a credential for this one answer that only works for your machines and ends with the
+                    answer.</p>
+                <p class="mb-0">Every tool call is checked and logged by BAS Intelligence. Kiro's text is AI interpretation: check
+                    it against the evidence in the report it links to. Kiro has no shell, file or web access.</p>
+            </div></div>
         </div>
-        <div class="col-xl-7">
+        <div class="col-xl-9">
             <div class="card"><div class="card-body">
-                <h2 class="h5">Investigation history</h2>
-                <table class="table table-sm align-middle small mb-0">
-                    <thead><tr><th>#</th><th>Machine</th><th>Question</th><th>Answered by</th><th>Diagnosis</th><th>Risk</th><th>Status</th></tr></thead>
-                    <tbody>
-                    <tr th:each="i : ${history}">
-                        <td><a th:href="@{/investigations/{id}(id=${i.id()})}" th:text="'INV-' + ${i.id()}">INV-1</a></td>
-                        <td th:text="${machineCodes.get(i.machineId())}">CNC-01</td>
-                        <td th:text="${i.question() == null ? '–' : #strings.abbreviate(i.question(), 60)}">q</td>
-                        <td>
-                            <span th:if="${i.requestedBy() == agentName}" class="badge text-bg-warning">Kiro via MCP</span>
-                            <span th:unless="${i.requestedBy() == agentName}" class="badge text-bg-secondary" th:text="${'pipeline · ' + i.requestedBy()}">web</span>
-                        </td>
-                        <td th:text="${i.diagnosis()}">d</td>
-                        <td><span th:if="${i.riskLevel() != null}" th:replace="~{fragments :: badge(${i.riskLevel()})}"></span></td>
-                        <td><span th:replace="~{fragments :: badge(${i.status()})}"></span></td>
-                    </tr>
-                    <tr th:if="${history.isEmpty()}"><td colspan="7" class="text-secondary">No investigations yet.</td></tr>
-                    </tbody>
-                </table>
+                <h2 class="h5" th:text="${view == null ? 'New conversation' : view.conversation().title()}">New conversation</h2>
+                <div th:if="${flashError}" class="alert alert-danger small py-2" th:text="${flashError}">error</div>
+
+                <div th:if="${view != null}" class="mb-3">
+                    <div th:each="mv : ${view.messages()}" th:with="m=${mv.message()}" class="chat-msg mb-3"
+                         th:classappend="${m.role().name() == 'USER'} ? 'chat-user' : 'chat-kiro'">
+                        <div th:if="${m.role().name() == 'USER'}">
+                            <div class="small text-secondary" th:text="${'You · ' + @fmt.time(m.createdAt())}">You</div>
+                            <div class="chat-text" th:text="${m.content()}">question</div>
+                        </div>
+                        <div th:if="${m.role().name() == 'KIRO'}">
+                            <div class="small text-secondary mb-1">
+                                <svg class="kiro-avatar" viewBox="0 0 64 72" aria-hidden="true"><use href="#g-kiro"/></svg>
+                                Kiro <span class="badge text-bg-warning fw-normal">AI interpretation</span>
+                                <span th:replace="~{fragments :: badge(${m.status()})}"></span>
+                                <span th:if="${m.finishedAt() != null}"
+                                      th:text="${'· ' + @fmt.elapsed(m.createdAt(), m.finishedAt())}">· 40 s</span>
+                                <span th:if="${m.credits() != null}" th:text="${'· ' + @fmt.num(m.credits(), 2) + ' credits'}">credits</span>
+                            </div>
+                            <div th:if="${!mv.reports().isEmpty()}" class="small mb-1">Reports:
+                                <a th:each="r : ${mv.reports()}" class="me-2" th:href="@{/investigations/{id}(id=${r.investigationId()})}"
+                                   th:text="${'INV-' + r.investigationId() + ' (' + r.machineCode() + ')'}">INV-1</a>
+                            </div>
+                            <details th:if="${!mv.steps().isEmpty()}" class="small mb-2">
+                                <summary th:text="${mv.steps().size() + ' MCP tool call(s), checked and logged by the server'}">calls</summary>
+                                <ol class="mb-0 mt-1">
+                                    <li th:each="s : ${mv.steps()}">
+                                        <code th:text="${s.tool()}">tool</code>
+                                        <span th:if="${s.machineCode() != null}" th:text="${s.machineCode()}">CNC-01</span>
+                                        <span th:replace="~{fragments :: badge(${s.status()})}"></span>
+                                        <span class="text-secondary" th:if="${s.durationMs() != null}" th:text="${s.durationMs() + ' ms'}">ms</span>
+                                        <span class="text-danger" th:if="${s.error() != null}" th:text="${s.error()}">err</span>
+                                    </li>
+                                </ol>
+                            </details>
+                            <div th:if="${m.status().name() == 'RUNNING'}" id="kiro-run"
+                                 th:attr="data-url=@{/assistant/messages/{id}/status.json(id=${m.id()})}">
+                                <div class="channeling costume-only" aria-hidden="true">
+                                    <span class="ch-circle">
+                                        <svg class="ch-ghost" viewBox="0 0 64 72"><use href="#g-kiro"/></svg>
+                                        <span class="ch-spark s1"></span><span class="ch-spark s2"></span><span class="ch-spark s3"></span>
+                                    </span>
+                                    <span class="ch-words">Kiro is channelling the plant: each tool call below is a spirit it consulted.</span>
+                                </div>
+                                <div class="d-flex align-items-center gap-2 small">
+                                    <span class="spinner-border spinner-border-sm text-warning" role="status"></span>
+                                    <span>Kiro is working… <span id="kiro-elapsed"></span></span>
+                                </div>
+                                <ol id="kiro-steps" class="small mt-2 mb-1"></ol>
+                                <div id="kiro-text" class="chat-text text-secondary"></div>
+                            </div>
+                            <div th:if="${m.errorMessage() != null}" class="alert alert-warning small py-2 mb-2" th:text="${m.errorMessage()}">error</div>
+                            <div th:if="${m.content() != null and m.status().name() != 'RUNNING'}" class="chat-reply"
+                                 th:utext="${replies.get(m.id())}">reply</div>
+                        </div>
+                    </div>
+                </div>
+
+                <form sec:authorize="hasRole('ENGINEER')" th:if="${availability.available() and (view == null or !view.running())}"
+                      th:action="@{/assistant/messages}" method="post" id="chat-form">
+                    <input th:if="${view != null}" type="hidden" name="conversationId" th:value="${view.conversation().id()}">
+                    <textarea name="message" class="form-control mb-2" rows="3" required th:attr="maxlength=${maxChars}"
+                              th:text="${draft}"
+                              th:placeholder="${view == null ? 'Ask Kiro about a machine, e.g. Why is PUMP-02 healthy?' : 'Ask a follow-up question'}"></textarea>
+                    <button class="btn btn-primary" type="submit">Send to Kiro</button>
+                    <svg class="kiro-listener ghost-eyes costume-only" viewBox="0 0 64 72" aria-hidden="true">
+                        <path d="M8 30C8 15.6 18.7 6 32 6s24 9.6 24 24v32a4.8 4.8 0 0 1-9.6 0 4.8 4.8 0 0 0-9.6 0 4.8 4.8 0 0 1-9.6 0 4.8 4.8 0 0 0-9.6 0A4.8 4.8 0 0 1 8 62z" fill="#f3f0ff"/>
+                        <g class="ge-eyes"><ellipse cx="24" cy="31" rx="3.8" ry="5.2" fill="#15132a"/><ellipse cx="40" cy="31" rx="3.8" ry="5.2" fill="#15132a"/>
+                            <circle cx="25.3" cy="29.3" r="1.3" fill="#fff"/><circle cx="41.3" cy="29.3" r="1.3" fill="#fff"/></g>
+                        <ellipse cx="32" cy="42.5" rx="2.8" ry="3.4" fill="#15132a"/>
+                    </svg>
+                    <span class="small text-secondary ms-2">An answer usually takes one to three minutes.</span>
+                </form>
+                <div th:if="${view == null}" class="small mt-2">Try:
+                    <button type="button" th:each="e : ${examples}" class="badge text-bg-light border me-1 fw-normal example-chip"
+                            th:attr="data-example=${e}" th:text="${e}">ex</button>
+                </div>
+                <p sec:authorize="!hasRole('ENGINEER')" class="text-secondary small mb-0">Only engineers can talk to Kiro.
+                    Read-only users can browse the <a th:href="@{/reports}">reports</a>.</p>
             </div></div>
         </div>
     </div>
 </main>
 <th:block th:replace="~{fragments :: scripts}"></th:block>
+<script th:src="@{/js/assistant-chat.js}"></script>
 </body>
 </html>

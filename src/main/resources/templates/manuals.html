@@ -5,7 +5,7 @@
 <nav th:replace="~{fragments :: nav}"></nav>
 <main class="container-fluid px-4">
     <div th:replace="~{fragments :: flash}"></div>
-    <h1 class="h3 mb-3">Knowledge management</h1>
+    <h1 class="h3 mb-3">Knowledge management<span class="spirit-subtitle costume-only">the grimoire</span></h1>
     <div class="row g-3">
         <div class="col-xl-7">
             <div class="card mb-3"><div class="card-body">
@@ -20,7 +20,8 @@
                     </select>
                     <button class="btn btn-primary" type="submit">Search</button>
                 </form>
-                <div th:each="h, s : ${hits}" class="mb-3">
+                <div class="search-hits" th:attr="data-highlight=${q}">
+                <div th:each="h, s : ${hits}" class="mb-3 search-hit">
                     <div class="d-flex justify-content-between">
                         <a class="fw-semibold" th:href="@{/manuals/{d}(d=${chunkDocuments.get(h.chunkId())})} + '#chunk-' + ${h.chunkId()}"
                            th:text="${s.count + '. ' + h.citation()}">citation</a>
@@ -28,13 +29,14 @@
                     </div>
                     <div class="evidence-detail" th:text="${h.content()}">content</div>
                 </div>
-                <p th:if="${q != null and !q.isBlank() and hits.isEmpty()}" class="text-secondary">No matching passages.</p>
+                </div>
+                <p th:if="${q != null and !q.isBlank() and hits.isEmpty()}" class="text-secondary">No matching passages.<span class="costume-only"> The grimoire is silent on this.</span></p>
             </div></div>
         </div>
         <div class="col-xl-5">
             <div class="card mb-3" sec:authorize="hasRole('ENGINEER')"><div class="card-body">
                 <h2 class="h5">Upload maintenance manuals</h2>
-                <form th:action="@{/manuals}" method="post" enctype="multipart/form-data">
+                <form th:action="@{/manuals}" method="post" enctype="multipart/form-data" data-seance="manual">
                     <input name="file" type="file" class="form-control mb-2" accept=".pdf,.docx,.doc,.txt,.md" required>
                     <input name="title" class="form-control mb-2" maxlength="255" placeholder="Title (optional)">
                     <select name="type" class="form-select mb-2">

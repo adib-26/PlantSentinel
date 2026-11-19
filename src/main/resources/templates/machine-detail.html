@@ -3,20 +3,24 @@
 <head th:replace="~{fragments :: head(${machine.code()})}"></head>
 <body>
 <nav th:replace="~{fragments :: nav}"></nav>
-<main class="container-fluid px-4">
+<div class="possession-vignette" aria-hidden="true"
+     th:if="${(machine.healthStatus() != null and machine.healthStatus().name() == 'CRITICAL') or (risk != null and risk.level().name() == 'CRITICAL')}"></div>
+<main class="container-fluid px-4"
+      th:with="possessed=${machine.healthStatus() != null and machine.healthStatus().name() == 'CRITICAL'}"
+      th:classappend="${possessed} ? 'is-possessed-page'">
     <div th:replace="~{fragments :: flash}"></div>
 
     <div class="d-flex flex-wrap justify-content-between align-items-start gap-3 mb-3">
         <div>
             <h1 class="h3 mb-0">
-                <span th:text="${machine.code()}">CNC-01</span>
+                <span th:text="${machine.code()}" th:style="${'view-transition-name:mc-' + machine.code()}">CNC-01</span>
                 <span th:replace="~{fragments :: badge(${machine.healthStatus()})}"></span>
             </h1>
             <div class="text-secondary" th:text="${machine.name() + ' · ' + machine.type().displayName() + ' · ' + (machine.location() ?: '')}">desc</div>
             <small class="text-secondary" th:text="'Last reading ' + ${@fmt.ago(machine.lastSeenAt())}">seen</small>
         </div>
         <form sec:authorize="hasRole('ENGINEER')" th:action="@{/machines/{code}/investigations(code=${machine.code()})}" method="post"
-              class="d-flex gap-2" style="min-width: 420px;">
+              class="d-flex gap-2" style="min-width: 420px;" data-seance="investigation">
             <input name="question" class="form-control" maxlength="1000"
                    placeholder="Optional question, e.g. why is vibration rising?">
             <button class="btn btn-primary text-nowrap" type="submit">Investigate</button>
@@ -52,7 +56,7 @@
         </div>
     </div>
     <details sec:authorize="hasRole('ENGINEER')" th:if="${activeIncident == null}" class="mb-3">
-        <summary class="small text-secondary">Simulate a machine incident (training and demos)</summary>
+        <summary class="small text-secondary">Simulate a machine incident (training and demos)<span class="costume-only"> · summon a training fault</span></summary>
         <form th:action="@{/machines/{code}/incidents(code=${machine.code()})}" method="post"
               class="d-flex flex-wrap gap-2 align-items-end mt-2">
             <div><label class="form-label small mb-0" for="incident-fault">Fault</label>
@@ -77,7 +81,7 @@
                         <button type="button" class="btn btn-outline-secondary" data-minutes="1440">24 h</button>
                         <button type="button" class="btn btn-outline-secondary" data-minutes="10080">7 d</button>
                     </div>
-                    <small class="text-secondary"><span id="chart-resolution">raw</span> · dashed lines: warning / critical limits · refreshes every 15 s</small>
+                    <small class="text-secondary"><span id="chart-resolution">raw</span> · dashed lines: warning / critical limits · refreshes every 15 s<span class="costume-only"> · red mist: past the critical limit · hover one chart to read all channels at that moment</span></small>
                 </div>
                 <div class="row g-3" id="charts" th:attr="data-url=@{/machines/{code}/telemetry.json(code=${machine.code()})}">
                     <div class="col-md-6" th:each="m : ${metrics}">
@@ -87,7 +91,7 @@
             </div></div>
         </div>
         <div class="col-xl-4">
-            <div class="card mb-3"><div class="card-body">
+            <div class="card mb-3 conn-card" th:classappend="'conn-' + ${quality.connectivity()}"><div class="card-body">
                 <div class="d-flex justify-content-between">
                     <h2 class="h5">Connectivity and data quality</h2>
                     <span th:replace="~{fragments :: badge(${quality.connectivity()})}"></span>
@@ -114,9 +118,18 @@
                 <h2 class="h5">Failure risk <span class="badge text-bg-info fw-normal">model prediction</span>
                     <a class="small fw-normal" th:href="@{/analytics(machine=${machine.code()})}">history</a></h2>
                 <div th:if="${risk != null}">
-                    <div class="d-flex align-items-baseline gap-2 mb-2">
-                        <span class="display-6" th:text="${@fmt.pct(risk.probability())}">20%</span>
-                        <span th:replace="~{fragments :: badge(${risk.level()})}"></span>
+                    <div class="d-flex align-items-center gap-3 mb-2">
+                        <div class="omen" th:classappend="'risk-' + ${risk.level()}" th:style="'--p:' + ${@fmt.share(risk.probability())}">
+                            <svg class="omen-ring" viewBox="0 0 120 120" aria-hidden="true">
+                                <circle class="omen-track" cx="60" cy="60" r="52"/>
+                                <circle class="omen-value" cx="60" cy="60" r="52" pathLength="100"/>
+                            </svg>
+                            <span class="display-6" th:text="${@fmt.pct(risk.probability())}">20%</span>
+                        </div>
+                        <div>
+                            <span th:replace="~{fragments :: badge(${risk.level()})}"></span>
+                            <div class="small text-secondary mt-1 costume-only">An omen, not a death: the model's estimate of failure.</div>
+                        </div>
                     </div>
                     <div class="small text-secondary mb-2">Contribution to log-odds (positive raises risk)</div>
                     <div th:each="c : ${risk.contributions()}" class="small mb-1">
@@ -173,7 +186,7 @@
                 <h2 class="h5">Visual inspections</h2>
                 <div sec:authorize="hasRole('ENGINEER')" class="border rounded p-2 mb-3 bg-light">
                     <form th:action="@{/machines/{code}/inspections(code=${machine.code()})}" method="post" enctype="multipart/form-data"
-                          class="row g-2 align-items-end">
+                          class="row g-2 align-items-end" data-seance="inspection">
                         <div class="col-sm-4"><label class="form-label small mb-0" for="component">Component</label>
                             <input id="component" name="component" class="form-control form-control-sm" required maxlength="120"
                                    placeholder="e.g. bearing housing"></div>
@@ -183,7 +196,7 @@
                         <div class="col-sm-3"><button class="btn btn-sm btn-primary w-100" type="submit">Inspect</button></div>
                     </form>
                     <form th:action="@{/machines/{code}/inspections/sample(code=${machine.code()})}" method="post"
-                          class="row g-2 align-items-end mt-1">
+                          class="row g-2 align-items-end mt-1" data-seance="inspection">
                         <div class="col-sm-4"><input name="component" class="form-control form-control-sm" value="Sample part" required></div>
                         <div class="col-sm-5"><select name="kind" class="form-select form-select-sm">
                             <option th:each="k : ${sampleKinds}" th:value="${k}" th:text="'Synthetic sample: ' + ${k}">GOOD</option>
@@ -193,7 +206,7 @@
                 </div>
                 <div class="row g-2">
                     <div class="col-sm-6" th:each="i : ${inspections}">
-                        <div class="border rounded p-2 h-100">
+                        <div class="border rounded p-2 h-100 inspection" th:classappend="'verdict-' + ${i.verdict()}">
                             <img class="inspection-img mb-1" th:src="@{/inspections/{id}/annotated.png(id=${i.id()})}" alt="annotated inspection image">
                             <div class="small">
                                 <span th:replace="~{fragments :: badge(${i.verdict()})}"></span>
@@ -210,7 +223,7 @@
         </div>
         <div class="col-xl-6">
             <div class="card mb-3"><div class="card-body">
-                <h2 class="h5">Anomaly events, last 24 h</h2>
+                <h2 class="h5"><svg class="hi apparition-ico costume-only" aria-hidden="true"><use href="#i-ghost"/></svg> Anomaly events, last 24 h</h2>
                 <table class="table table-sm small mb-0" th:unless="${anomalies.isEmpty()}">
                     <thead><tr><th>Time</th><th>Detector</th><th>Severity</th><th>Message</th></tr></thead>
                     <tbody>
@@ -259,34 +272,42 @@
         </div>
     </div>
     <div class="card mb-3" id="events"><div class="card-body">
-        <h2 class="h5">Four different kinds of event</h2>
+        <h2 class="h5">Four different kinds of event<span class="costume-only"> · a field guide to what haunts this machine</span></h2>
         <p class="small text-secondary">A sensor fault is bad data, an anomaly is unusual behaviour, a prediction is a model's
             estimate, and only a confirmed failure means the machine actually failed.</p>
-        <div class="row g-3 small">
-            <div class="col-lg-3">
+        <div class="row g-3 small bestiary">
+            <div class="col-lg-3"><div class="beast beast-poltergeist">
+                <svg class="beast-ico costume-only" aria-hidden="true"><use href="#i-poltergeist"/></svg>
                 <div class="fw-semibold">Sensor faults <span class="badge text-bg-secondary">data quality</span></div>
+                <span class="spirit-name costume-only">Poltergeists: mischief in the wiring, not in the machine</span>
                 <ul class="list-unstyled mb-0">
                     <li th:each="f : ${sensorFaults}" th:text="${f.type() + ' · ' + f.message() + ' · ' + @fmt.ago(f.detectedAt())}">f</li>
                     <li th:if="${sensorFaults.isEmpty()}" class="text-secondary">None in 24 h.</li>
                 </ul>
-            </div>
-            <div class="col-lg-3">
+            </div></div>
+            <div class="col-lg-3"><div class="beast beast-apparition">
+                <svg class="beast-ico costume-only" aria-hidden="true"><use href="#i-ghost"/></svg>
                 <div class="fw-semibold">Machine anomalies <span class="badge text-bg-info">rule-based</span></div>
+                <span class="spirit-name costume-only">Apparitions: something unusual was seen</span>
                 <div th:text="${anomalies.size() + ' in 24 h'}">0</div>
                 <div class="text-secondary" th:unless="${anomalies.isEmpty()}" th:text="${anomalies.get(0).message()}">latest</div>
-            </div>
-            <div class="col-lg-3">
+            </div></div>
+            <div class="col-lg-3"><div class="beast beast-omen">
+                <svg class="beast-ico costume-only" aria-hidden="true"><use href="#i-orb"/></svg>
                 <div class="fw-semibold">Model predictions <span class="badge text-bg-info">model</span></div>
+                <span class="spirit-name costume-only">Omens: a forecast, never a fact</span>
                 <div th:if="${risk != null}" th:text="${'Current risk ' + @fmt.pct(risk.probability()) + ' (' + risk.level() + '). An estimate, not a failure.'}">risk</div>
-            </div>
-            <div class="col-lg-3">
+            </div></div>
+            <div class="col-lg-3"><div class="beast beast-grave">
+                <svg class="beast-ico costume-only" aria-hidden="true"><use href="#i-tomb"/></svg>
                 <div class="fw-semibold">Confirmed failures <span class="badge text-bg-dark">confirmed by a person</span></div>
+                <span class="spirit-name costume-only">Graves: it really failed, and a person confirmed it</span>
                 <ul class="list-unstyled mb-0">
                     <li th:each="f : ${failures}"
                         th:text="${f.mode() + ' · ' + f.description() + ' · ' + f.confirmedBy() + ' ' + @fmt.time(f.occurredAt()) + (f.priorProbability() != null ? ' · predicted risk before: ' + @fmt.pct(f.priorProbability()) : '')}">f</li>
                     <li th:if="${failures.isEmpty()}" class="text-secondary">None recorded.</li>
                 </ul>
-            </div>
+            </div></div>
         </div>
     </div></div>
 

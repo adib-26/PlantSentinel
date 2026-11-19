@@ -8,6 +8,7 @@ import static org.hamcrest.Matchers.startsWith;
 import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.httpBasic;
 import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.user;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
@@ -15,7 +16,11 @@ import java.security.MessageDigest;
 import java.time.Duration;
 import java.time.Instant;
 import java.time.temporal.ChronoUnit;
+import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.HexFormat;
+import java.util.LinkedHashMap;
+import java.util.List;
 import java.util.Map;
 import java.util.Random;
 
@@ -25,6 +30,7 @@ import org.junit.jupiter.api.TestInstance;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMockMvc;
 import org.springframework.boot.test.context.SpringBootTest;
+import org.springframework.http.MediaType;
 import org.springframework.jdbc.core.simple.JdbcClient;
 import org.springframework.test.context.ActiveProfiles;
 import org.springframework.test.web.servlet.MockMvc;
@@ -46,6 +52,9 @@ import com.basintelligence.users.UserAdminService;
 import com.basintelligence.users.UserRole;
 import com.basintelligence.vision.InspectionService;
 import com.basintelligence.vision.SampleImageGenerator;
+import com.fasterxml.jackson.core.type.TypeReference;
+import com.fasterxml.jackson.databind.JsonNode;
+import com.fasterxml.jackson.databind.ObjectMapper;
 
 /**
  * "A prediction is audited after its raw telemetry was pruned, or after its record or readings were changed."
@@ -60,8 +69,11 @@ class PredictionGovernanceScenarioIntegrationTest {
 
     static final String PW = "Plant-Governance-2026!";
     static final RequestPostProcessor VIEWER = httpBasic("viewer", "viewer-pw");
+    static final TypeReference<LinkedHashMap<String, Double>> PROBABILITIES = new TypeReference<>() {
+    };
 
     @Autowired MockMvc mvc;
+    @Autowired ObjectMapper json;
     @Autowired MachineService machines;
     @Autowired TelemetryRepository telemetry;
     @Autowired PredictionService predictions;
@@ -84,7 +96,7 @@ class PredictionGovernanceScenarioIntegrationTest {
 
         mvc.perform(get("/api/machines/GOV-01/predictions").with(VIEWER))
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$[0].id").value(id))
+                .andExpect(jsonPath("$[0].predictionId").value(id))
                 .andExpect(jsonPath("$[0].modelName").value("failure-risk"))
                 .andExpect(jsonPath("$[0].modelVersion", startsWith("1.0+w")))
                 .andExpect(jsonPath("$[0].inputReference", startsWith("telemetry[")));
@@ -199,6 +211,82 @@ class PredictionGovernanceScenarioIntegrationTest {
         assertThat(((Number) risk.get("risk_score")).doubleValue()).isBetween(0.0, 1.0);
         assertThat((String) risk.get("input_reference")).matches("telemetry\\[.+/.+] n=12 features=sha256:[0-9a-f]{64}");
         assertThat(risk.get("prediction_timestamp")).isNotNull();
+        assertThat(risk.get("predicted_value")).isNull();
+    }
+
+    /**
+     * ML-lab rows: risk_score is the model's own 0-1 score and predicted_class follows from it, or it is NULL. The RUL
+     * regressor's output is predicted_value; the bearing fault classifier keeps its class probabilities instead.
+     */
+    @Test
+    void mlLabRowsStoreARiskScoreOnlyWhenTheModelHasOne() throws Exception {
+        machines.register(new MachineService.RegisterMachine("GOV-08", "GOV-08", MachineType.CNC_MILL, null), "test");
+        JsonNode process = postMl("/api/ml/process-failure", """
+                [{"type":"M","airTempK":298.1,"processTempK":308.6,"rpm":1551,"torqueNm":42.8,"toolWearMin":0},
+                 {"type":"L","airTempK":299.0,"processTempK":309.0,"rpm":1300,"torqueNm":68.0,"toolWearMin":230}]""");
+        List<List<Double>> cycles = new ArrayList<>();
+        for (int c = 0; c < 20; c++) { // first cycles of C-MAPSS FD001 engine 1
+            cycles.add(List.of(518.67, 641.82, 1589.70, 1400.60, 14.62, 21.61, 554.36, 2388.06, 9046.19, 1.30, 47.47,
+                    521.66, 2388.02, 8138.62, 8.4195, 0.03, 392.0, 2388.0, 100.00, 39.06, 23.4190));
+        }
+        JsonNode rul = postMl("/api/ml/remaining-useful-life", json.writeValueAsString(Map.of("cycles", cycles)));
+        List<Double> samples = new ArrayList<>();
+        Random random = new Random(8);
+        for (int i = 0; i < 3 * 1024; i++) { // two windows with impacts, then a smooth one
+            samples.add(0.05 * random.nextGaussian() + (i < 2048 && i % 100 < 3 ? 2.5 * Math.exp(-(i % 100)) : 0));
+        }
+        JsonNode bearing = postMl("/api/ml/bearing-vibration", json.writeValueAsString(Map.of("samples", samples)));
+
+        Map<Long, Map<String, Object>> rows = new HashMap<>();
+        jdbc.sql("SELECT * FROM prediction_governance WHERE device_id = (SELECT id FROM devices WHERE code = 'GOV-08')")
+                .query().listOfRows().forEach(r -> rows.put(((Number) r.get("prediction_id")).longValue(), r));
+        assertThat(rows).hasSize(2 + 1 + 3 * 2);
+        assertThat(rows.values()).allSatisfy(r -> assertThat(r).containsEntry("source_table", "ml_predictions")
+                .containsEntry("trigger_type", "API"));
+
+        for (JsonNode p : process) {
+            Map<String, Object> row = rows.get(p.get("predictionId").asLong());
+            assertThat(row).containsEntry("model_name", "process-failure-classifier")
+                    .containsEntry("predicted_class", p.get("failurePredicted").asBoolean() ? "failure" : "no_failure");
+            assertThat(score(row)).isEqualTo(p.get("failureProbability").asDouble());
+            assertThat(row.get("predicted_value")).isNull();
+        }
+
+        Map<String, Object> rulRow = rows.get(rul.get("predictionId").asLong());
+        assertThat(rulRow).containsEntry("model_name", "remaining-useful-life-regressor");
+        assertThat(rulRow.get("risk_score")).as("a regression has no probability").isNull();
+        assertThat(((Number) rulRow.get("predicted_value")).doubleValue()).isEqualTo(rul.get("remainingCycles").asDouble());
+
+        assertThat(bearing.size()).isEqualTo(3);
+        for (JsonNode w : bearing) {
+            Map<String, Object> detector = rows.get(w.get("anomalyPredictionId").asLong());
+            assertThat(detector).containsEntry("model_name", "bearing-anomaly-detector")
+                    .containsEntry("predicted_class", w.get("anomalous").asBoolean() ? "anomalous" : "normal");
+            assertThat(score(detector)).isEqualTo(w.get("anomalyScore").asDouble());
+            assertThat(w.get("anomalous").asBoolean()).isEqualTo(score(detector) > w.get("threshold").asDouble());
+
+            Map<String, Object> fault = rows.get(w.get("conditionPredictionId").asLong());
+            assertThat(fault).containsEntry("model_name", "bearing-fault-classifier")
+                    .containsEntry("predicted_class", w.get("likelyCondition").asText());
+            assertThat(fault.get("risk_score")).as("the lab validated no fault score for the classifier").isNull();
+            Map<String, Double> stored = json.readValue(jdbc.sql("SELECT probabilities_json FROM ml_predictions WHERE id = :id")
+                    .param("id", w.get("conditionPredictionId").asLong()).query(String.class).single(), PROBABILITIES);
+            assertThat(stored).containsExactlyEntriesOf(json.convertValue(w.get("conditionProbabilities"), PROBABILITIES));
+            assertThat(stored.keySet()).containsExactly("normal", "inner_race", "ball", "outer_race");
+            assertThat(fault.get("predicted_class")).as("the most probable condition")
+                    .isEqualTo(stored.entrySet().stream().max(Map.Entry.comparingByValue()).orElseThrow().getKey());
+        }
+        assertThat(bearing.get(0).get("anomalous").asBoolean()).isTrue();
+    }
+
+    private JsonNode postMl(String path, String body) throws Exception {
+        return json.readTree(mvc.perform(post(path).param("machine", "GOV-08").with(VIEWER)
+                        .contentType(MediaType.APPLICATION_JSON).content(body))
+                .andExpect(status().isOk()).andReturn().getResponse().getContentAsString());
+    }
+
+    private static double score(Map<String, Object> row) {
+        return ((Number) row.get("risk_score")).doubleValue();
     }
 
     /** 30 readings one minute apart from {@code start}, written directly (as already-accepted telemetry). */

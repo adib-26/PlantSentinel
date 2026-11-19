@@ -42,4 +42,12 @@ public record ModelCard(
     public List<String> featureNames() {
         return features.stream().map(Feature::name).toList();
     }
+
+    /**
+     * The version plus the first 12 hex of the artifact checksum, e.g. {@code 1.0.0+355bad0b9685}. The registry only
+     * serves an artifact whose checksum matches its card, so this names the exact file that made a prediction.
+     */
+    public String artifactVersion() {
+        return artifactSha256 == null ? version : version + "+" + artifactSha256.substring(0, Math.min(12, artifactSha256.length()));
+    }
 }

@@ -23,6 +23,8 @@ public @interface RateLimited {
         /** Model predictions and telemetry analysis. */
         PREDICTION,
         /** Manual library search. */
-        SEARCH
+        SEARCH,
+        /** Messages to the Kiro assistant. Each starts a Kiro CLI run that spends the operator's Kiro credits. */
+        ASSISTANT
     }
 }

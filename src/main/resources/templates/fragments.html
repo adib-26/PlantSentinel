@@ -6,27 +6,80 @@
     <title th:text="${title} + ' · BAS Intelligence'">BAS Intelligence</title>
     <link rel="stylesheet" th:href="@{/webjars/bootstrap/css/bootstrap.min.css}">
     <link rel="stylesheet" th:href="@{/css/app.css}">
+    <link rel="stylesheet" th:href="@{/css/haunted.css}">
+    <!-- Sets the costume (haunted by default, or daylight) before the first paint. -->
+    <script th:src="@{/js/costume-init.js}"></script>
+    <script th:src="@{/js/haunted.js}" defer></script>
+    <script th:src="@{/js/spirit-board.js}" defer></script>
+    <script th:src="@{/js/haunted-pages.js}" defer></script>
 </head>
 <body>
+<!-- Icons for the haunted costume. Decorative only: every use is aria-hidden next to a text label. -->
+<svg th:fragment="icons" class="icon-sprite" xmlns="http://www.w3.org/2000/svg" width="0" height="0" aria-hidden="true" focusable="false">
+    <symbol id="i-ghost" viewBox="0 0 24 24"><g fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M5 20V10a7 7 0 0 1 14 0v10a1.4 1.4 0 0 1-2.8 0 1.4 1.4 0 0 0-2.8 0 1.4 1.4 0 0 1-2.8 0 1.4 1.4 0 0 0-2.8 0A1.4 1.4 0 0 1 5 20z"/><path d="M9.6 9.6v1.2M14.4 9.6v1.2"/><circle cx="12" cy="14" r=".9"/></g></symbol>
+    <symbol id="i-pumpkin" viewBox="0 0 24 24"><g fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M12 6.6c-.2-1.6.4-2.9 1.8-3.6"/><path d="M12 6.9C8.4 5.6 4 7.5 4 12.6 4 17.8 7.6 20 9.6 20c1 0 1.6-.5 2.4-.5s1.4.5 2.4.5c2 0 5.6-2.2 5.6-7.4 0-5.1-4.4-7-8-5.7z"/><path d="M8.3 11.6 9.9 10l.6 2zM15.7 11.6 14.1 10l-.6 2z" fill="currentColor"/><path d="m8.4 14.6 1.4 1.1 1.1-.8 1.1.8 1.1-.8 1.1.8 1.4-1.1"/></g></symbol>
+    <symbol id="i-bat" viewBox="0 0 24 24"><path fill="currentColor" d="M12 9.2 13.2 7.1l.2 1.9c2.2-1.1 5.5-1.4 8.6-.3-1.5.7-2.4 1.9-2.7 3.4-.9-.7-2.2-.8-3-.3-.5-.7-1.5-.8-2.2-.1-.6.9-1.3 1.8-2.1 2.6-.8-.8-1.5-1.7-2.1-2.6-.7-.7-1.7-.6-2.2.1-.8-.5-2.1-.4-3 .3C4.4 10.6 3.5 9.4 2 8.7c3.1-1.1 6.4-.8 8.6.3l.2-1.9z"/></symbol>
+    <symbol id="i-candle" viewBox="0 0 24 24"><g fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2.8c1.5 1.6 2 2.8 2 3.8a2 2 0 0 1-4 0c0-1 .5-2.2 2-3.8z"/><path d="M12 8.6v2.2"/><rect x="8.5" y="10.8" width="7" height="10.2" rx="1.2"/><path d="M15.5 13.2c-.9.5-1.2 1.2-1.2 2.2"/></g></symbol>
+    <symbol id="i-orb" viewBox="0 0 24 24"><g fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="10.5" r="6.8"/><path d="M8.4 17.6 7 21h10l-1.4-3.4"/><path d="M9.1 8.4A3.4 3.4 0 0 1 12 6.5"/><path d="m14.3 11.6.5 1.1 1.1.5-1.1.5-.5 1.1-.5-1.1-1.1-.5 1.1-.5z" fill="currentColor"/></g></symbol>
+    <symbol id="i-tomb" viewBox="0 0 24 24"><g fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M6.5 20.5V10a5.5 5.5 0 0 1 11 0v10.5"/><path d="M4 20.5h16"/><path d="M9.8 10.5h4.4M9.8 13.5h4.4M10.8 16.5h2.4"/></g></symbol>
+    <symbol id="i-poltergeist" viewBox="0 0 24 24"><g fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M6 20.5V11a6 6 0 0 1 12 0v9.5a1.2 1.2 0 0 1-2.4 0 1.2 1.2 0 0 0-2.4 0 1.2 1.2 0 0 1-2.4 0 1.2 1.2 0 0 0-2.4 0A1.2 1.2 0 0 1 6 20.5z"/><path d="m8.9 10.4 1.6 1.4M10.5 10.4 8.9 11.8M13.5 10.4l1.6 1.4M15.1 10.4l-1.6 1.4"/><path d="M2.6 5.6 4.2 7.4 3 8.4l1.6 1.8M21.4 4.6l-1.6 1.8 1.2 1-1.6 1.8"/></g></symbol>
+    <symbol id="i-factory" viewBox="0 0 24 24"><g fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M3 21v-9.5l5 3v-3l5 3v-3l5 3V4h3v17z"/><path d="M7 17.5h1.5M11 17.5h1.5M15 17.5h1.5"/></g></symbol>
+    <symbol id="i-moon" viewBox="0 0 24 24"><g fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M19.5 14.6A7.5 7.5 0 1 1 9.4 4.5a6 6 0 0 0 10.1 10.1z"/><path d="M17 3.5v2.6M15.7 4.8h2.6"/></g></symbol>
+    <symbol id="i-seal" viewBox="0 0 24 24"><g fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="m12 3.2 1.6 1.2 2-.2.8 1.8 1.8.8-.2 2 1.2 1.6-1.2 1.6.2 2-1.8.8-.8 1.8-2-.2-1.6 1.2-1.6-1.2-2 .2-.8-1.8-1.8-.8.2-2L4.8 10.4 6 8.8l-.2-2 1.8-.8.8-1.8 2 .2z"/><path d="m9.4 10.6 1.8 1.8 3.4-3.6"/><path d="m8.6 17.4-1.4 3.6 2.6-.9 1.4 2M15.4 17.4l1.4 3.6-2.6-.9-1.4 2"/></g></symbol>
+    <symbol id="i-book" viewBox="0 0 24 24"><g fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M5 19.5V5a2 2 0 0 1 2-2h12v15H7a2 2 0 0 0-2 2 2 2 0 0 0 2 2h12"/><path d="M12 6.6 13.7 9.8 12 13l-1.7-3.2z"/></g></symbol>
+    <symbol id="i-scroll" viewBox="0 0 24 24"><g fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M6 3h9l4 4v14H6z"/><path d="M15 3v4h4"/><path d="M9 11h7M9 14.5h7M9 18h4"/></g></symbol>
+    <symbol id="i-eye" viewBox="0 0 24 24"><g fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M2.5 12S6 5.5 12 5.5 21.5 12 21.5 12 18 18.5 12 18.5 2.5 12 2.5 12z"/><circle cx="12" cy="12" r="3"/><circle cx="12" cy="12" r=".7" fill="currentColor"/></g></symbol>
+    <symbol id="i-key" viewBox="0 0 24 24"><g fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><circle cx="8" cy="15" r="4"/><path d="m10.8 12.2 9.2-9.2M16 7l2.5 2.5M13.8 9.2l2 2"/></g></symbol>
+    <symbol id="i-wrench" viewBox="0 0 24 24"><g fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M12 10a4.6 4.6 0 0 1 5.9-6.3l-2.4 2.4.6 2.2 2.2.6 2.4-2.4A4.6 4.6 0 0 1 14 12l-8.5 8.5a1.4 1.4 0 0 1-2-2z"/></g></symbol>
+    <symbol id="i-api" viewBox="0 0 24 24"><g fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M8.5 7 3.5 12l5 5M15.5 7l5 5-5 5M13.5 5l-3 14"/></g></symbol>
+    <symbol id="i-quill" viewBox="0 0 24 24"><g fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M20 3.5C13 4 8.5 9 7.5 15.5L6 20.5"/><path d="M20 3.5c-.5 6.5-5 10.5-11.2 11.7"/><path d="m11 13.2-1.2-1.4M13.6 10.6l-1.2-1.3M16 7.8l-1-1.2"/></g></symbol>
+    <symbol id="i-search" viewBox="0 0 24 24"><g fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="6.5"/><path d="m20 20-4.2-4.2"/></g></symbol>
+    <symbol id="i-sound" viewBox="0 0 24 24"><g fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M4 9.5h3.5L12 5.5v13l-4.5-4H4z"/><path d="M15.5 9a4 4 0 0 1 0 6M18 6.5a7.5 7.5 0 0 1 0 11"/></g></symbol>
+    <symbol id="i-mute" viewBox="0 0 24 24"><g fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M4 9.5h3.5L12 5.5v13l-4.5-4H4z"/><path d="m16 9.5 5 5M21 9.5l-5 5"/></g></symbol>
+    <symbol id="i-sparkle" viewBox="0 0 24 24"><g fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3.5 13.8 10l6.7 2-6.7 2L12 20.5 10.2 14l-6.7-2 6.7-2z"/></g></symbol>
+    <symbol id="g-kiro" viewBox="0 0 64 72"><path d="M8 30C8 15.6 18.7 6 32 6s24 9.6 24 24v32a4.8 4.8 0 0 1-9.6 0 4.8 4.8 0 0 0-9.6 0 4.8 4.8 0 0 1-9.6 0 4.8 4.8 0 0 0-9.6 0A4.8 4.8 0 0 1 8 62z" fill="#f3f0ff"/><ellipse cx="24" cy="31" rx="3.8" ry="5.2" fill="#15132a"/><ellipse cx="40" cy="31" rx="3.8" ry="5.2" fill="#15132a"/><circle cx="25.3" cy="29.3" r="1.3" fill="#fff"/><circle cx="41.3" cy="29.3" r="1.3" fill="#fff"/><ellipse cx="32" cy="42.5" rx="2.8" ry="3.4" fill="#15132a"/><ellipse cx="17.5" cy="38.5" rx="3.4" ry="2" fill="#ff9ec7" opacity=".5"/><ellipse cx="46.5" cy="38.5" rx="3.4" ry="2" fill="#ff9ec7" opacity=".5"/></symbol>
+</svg>
 <nav th:fragment="nav" class="navbar navbar-expand-md navbar-dark bg-dark mb-4">
+    <svg th:replace="~{fragments :: icons}"></svg>
     <div class="container-fluid">
-        <a class="navbar-brand fw-semibold" th:href="@{/}">BAS Intelligence</a>
+        <a class="navbar-brand fw-semibold" th:href="@{/}"><svg class="brand-ghost costume-only" viewBox="0 0 64 72" aria-hidden="true"><use href="#g-kiro"/></svg>BAS Intelligence</a>
         <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#nav"
                 aria-controls="nav" aria-expanded="false" aria-label="Toggle navigation">
             <span class="navbar-toggler-icon"></span>
         </button>
         <div class="collapse navbar-collapse" id="nav">
             <ul class="navbar-nav me-auto">
-                <li class="nav-item"><a class="nav-link" th:classappend="${currentPath == '/' or #strings.startsWith(currentPath, '/machines')} ? 'active'" th:href="@{/}">Overview</a></li>
-                <li class="nav-item"><a class="nav-link" th:classappend="${#strings.startsWith(currentPath, '/analytics') or #strings.startsWith(currentPath, '/models')} ? 'active'" th:href="@{/analytics}">Analytics</a></li>
-                <li class="nav-item"><a class="nav-link" th:classappend="${#strings.startsWith(currentPath, '/assistant') or #strings.startsWith(currentPath, '/investigations')} ? 'active'" th:href="@{/assistant}">Kiro assistant</a></li>
-                <li class="nav-item"><a class="nav-link" th:classappend="${#strings.startsWith(currentPath, '/maintenance')} ? 'active'" th:href="@{/maintenance}">Maintenance</a></li>
-                <li class="nav-item"><a class="nav-link" th:classappend="${#strings.startsWith(currentPath, '/manuals')} ? 'active'" th:href="@{/manuals}">Knowledge</a></li>
-                <li class="nav-item" sec:authorize="hasRole('ADMIN')"><a class="nav-link" th:classappend="${#strings.startsWith(currentPath, '/admin')} ? 'active'" th:href="@{/admin}">Administration</a></li>
-                <li class="nav-item" sec:authorize="hasRole('ADMIN')"><a class="nav-link" th:classappend="${#strings.startsWith(currentPath, '/agent')} ? 'active'" th:href="@{/agent}">Agent activity</a></li>
-                <li class="nav-item" sec:authorize="hasRole('ADMIN')"><a class="nav-link" th:classappend="${#strings.startsWith(currentPath, '/audit')} ? 'active'" th:href="@{/audit}">Audit log</a></li>
-                <li class="nav-item"><a class="nav-link" th:href="@{/swagger-ui.html}">API</a></li>
+                <li class="nav-item"><a class="nav-link" th:classappend="${currentPath == '/' or #strings.startsWith(currentPath, '/machines')} ? 'active'" th:href="@{/}"><svg class="hi nav-ico costume-only" aria-hidden="true"><use href="#i-factory"/></svg>Overview</a></li>
+                <li class="nav-item"><a class="nav-link" th:classappend="${#strings.startsWith(currentPath, '/analytics') or #strings.startsWith(currentPath, '/models')} ? 'active'" th:href="@{/analytics}"><svg class="hi nav-ico costume-only" aria-hidden="true"><use href="#i-orb"/></svg>Analytics</a></li>
+                <li class="nav-item"><a class="nav-link" th:classappend="${#strings.startsWith(currentPath, '/reports') or #strings.startsWith(currentPath, '/investigations')} ? 'active'" th:href="@{/reports}"><svg class="hi nav-ico costume-only" aria-hidden="true"><use href="#i-scroll"/></svg>Report</a></li>
+                <li class="nav-item"><a class="nav-link" th:classappend="${#strings.startsWith(currentPath, '/assistant')} ? 'active'" th:href="@{/assistant}"><svg class="hi nav-ico costume-only" aria-hidden="true"><use href="#i-ghost"/></svg>Kiro assistant</a></li>
+                <li class="nav-item"><a class="nav-link" th:classappend="${#strings.startsWith(currentPath, '/maintenance')} ? 'active'" th:href="@{/maintenance}"><svg class="hi nav-ico costume-only" aria-hidden="true"><use href="#i-wrench"/></svg>Maintenance</a></li>
+                <li class="nav-item"><a class="nav-link" th:classappend="${#strings.startsWith(currentPath, '/manuals')} ? 'active'" th:href="@{/manuals}"><svg class="hi nav-ico costume-only" aria-hidden="true"><use href="#i-book"/></svg>Knowledge</a></li>
+                <li class="nav-item" sec:authorize="hasRole('ADMIN')"><a class="nav-link" th:classappend="${#strings.startsWith(currentPath, '/admin')} ? 'active'" th:href="@{/admin}"><svg class="hi nav-ico costume-only" aria-hidden="true"><use href="#i-key"/></svg>Administration</a></li>
+                <li class="nav-item" sec:authorize="hasRole('ADMIN')"><a class="nav-link" th:classappend="${#strings.startsWith(currentPath, '/agent')} ? 'active'" th:href="@{/agent}"><svg class="hi nav-ico costume-only" aria-hidden="true"><use href="#i-eye"/></svg>Agent activity</a></li>
+                <li class="nav-item" sec:authorize="hasRole('ADMIN')"><a class="nav-link" th:classappend="${#strings.startsWith(currentPath, '/audit')} ? 'active'" th:href="@{/audit}"><svg class="hi nav-ico costume-only" aria-hidden="true"><use href="#i-quill"/></svg>Audit log</a></li>
+                <li class="nav-item"><a class="nav-link" th:href="@{/swagger-ui.html}"><svg class="hi nav-ico costume-only" aria-hidden="true"><use href="#i-api"/></svg>API</a></li>
             </ul>
+            <div class="haunt-controls d-flex align-items-center gap-2 me-3">
+                <button type="button" class="btn btn-sm btn-outline-light haunt-summon" data-summon
+                        aria-keyshortcuts="/ Control+K Meta+K" title="Search machines, pages and reports (press /)">
+                    <svg class="hi" aria-hidden="true"><use href="#i-search"/></svg>
+                    <span class="daylight-only">Search</span><span class="costume-only">Summon</span>
+                    <kbd>/</kbd>
+                </button>
+                <button type="button" class="btn btn-sm haunt-ambience costume-only" data-ambience aria-pressed="false"
+                        title="Ambient sound (off)">
+                    <svg class="hi ico-on" aria-hidden="true"><use href="#i-sound"/></svg>
+                    <svg class="hi ico-off" aria-hidden="true"><use href="#i-mute"/></svg>
+                    <span class="visually-hidden">Ambient sound</span>
+                </button>
+                <button type="button" class="haunt-costume" data-costume-toggle role="switch" aria-checked="false"
+                        title="Switch the haunted costume on or off">
+                    <svg class="hi" aria-hidden="true"><use href="#i-pumpkin"/></svg>
+                    <span class="haunt-costume-label">Costume</span>
+                    <span class="haunt-switch" aria-hidden="true"><span></span></span>
+                </button>
+            </div>
             <span class="navbar-text me-3 small">
                 <span sec:authentication="name">user</span>
                 <span class="text-secondary" sec:authorize="hasRole('ADMIN')">· admin</span>
@@ -48,10 +101,10 @@
     </div>
 </div>
 
-<span th:fragment="badge(value)" class="badge" th:classappend="'text-bg-' + ${@fmt.tone(value)}" th:text="${value}">STATUS</span>
+<span th:fragment="badge(value)" class="badge" th:classappend="'text-bg-' + ${@fmt.tone(value)} + ' st-' + ${value}" th:text="${value}">STATUS</span>
 
-<span th:fragment="classBadge(cls)" class="badge" th:classappend="'text-bg-' + ${@fmt.tone(cls)}"
-      th:text="${cls.label()}" th:title="${cls.meaning()}">CLASS</span>
+<span th:fragment="classBadge(cls)" class="badge ev-badge" th:classappend="'text-bg-' + ${@fmt.tone(cls)} + ' ev-' + ${cls.name()}"
+      th:attr="data-ev-filter=${cls.name()}" th:text="${cls.label()}" th:title="${cls.meaning()}">CLASS</span>
 
 <th:block th:fragment="scripts">
     <script th:src="@{/webjars/bootstrap/js/bootstrap.bundle.min.js}"></script>

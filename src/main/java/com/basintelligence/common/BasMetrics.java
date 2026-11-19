@@ -26,6 +26,19 @@ public final class BasMetrics {
     public static final String PREDICTIONS = "bas.predictions";
     /** Distribution summary, tag {@code model}: predicted probabilities (0..1), with buckets every 0.1 for Prometheus. */
     public static final String PREDICTION_PROBABILITY = "bas.prediction.probability";
+    /**
+     * Counter, tags {@code table} (model_predictions, ml_predictions) and {@code reason} (retention, row_limit): stored
+     * predictions deleted. Any {@code row_limit} count means rows went before their retention period ended.
+     */
+    public static final String PREDICTIONS_REMOVED = "bas.predictions.removed";
+
+    // Kiro assistant page (Kiro CLI runs started by the web app)
+    /** Counter, tag {@code outcome} (DONE, FAILED, TIMED_OUT, CANCELLED): messages Kiro answered or failed to. */
+    public static final String ASSISTANT_MESSAGES = "bas.assistant.messages";
+    /** Timer: how long one Kiro run took, from the engineer's message to the stored reply. */
+    public static final String ASSISTANT_DURATION = "bas.assistant.duration";
+    /** Distribution summary: Kiro credits per run, as Kiro CLI reports them. */
+    public static final String ASSISTANT_CREDITS = "bas.assistant.credits";
 
     // Kiro agent over MCP
     /** Timer, tags {@code tool} and {@code outcome} (SUCCESS, ERROR, TIMEOUT, DENIED): MCP tool call latency. */

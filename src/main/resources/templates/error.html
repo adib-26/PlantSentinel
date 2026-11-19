@@ -1,9 +1,40 @@
 <!DOCTYPE html>
 <html xmlns:th="http://www.thymeleaf.org">
 <head th:replace="~{fragments :: head('Error')}"></head>
-<body>
-<main class="container" style="max-width: 640px; margin-top: 10vh;">
+<body class="scene-error" th:with="code=${status != null ? status.toString() : ''}">
+<svg th:replace="~{fragments :: icons}"></svg>
+<div class="haunt-scene costume-only" aria-hidden="true">
+    <div class="sky"></div>
+    <div class="stars stars-a"></div>
+    <div class="moon"><span class="crater c1"></span><span class="crater c2"></span><span class="crater c3"></span></div>
+    <div class="cloud cloud-1"></div>
+    <div class="ground-fog gf-1"></div>
+    <div class="ground-fog gf-2"></div>
+</div>
+<main class="container error-crypt" style="max-width: 640px; margin-top: 10vh;">
+    <div class="tomb costume-only" aria-hidden="true">
+        <svg class="tomb-ghost ghost-eyes" viewBox="0 0 64 72">
+            <path d="M8 30C8 15.6 18.7 6 32 6s24 9.6 24 24v32a4.8 4.8 0 0 1-9.6 0 4.8 4.8 0 0 0-9.6 0 4.8 4.8 0 0 1-9.6 0 4.8 4.8 0 0 0-9.6 0A4.8 4.8 0 0 1 8 62z" fill="#f3f0ff"/>
+            <g class="ge-eyes"><ellipse cx="24" cy="31" rx="3.8" ry="5.2" fill="#15132a"/><ellipse cx="40" cy="31" rx="3.8" ry="5.2" fill="#15132a"/>
+                <circle cx="25.3" cy="29.3" r="1.3" fill="#fff"/><circle cx="41.3" cy="29.3" r="1.3" fill="#fff"/></g>
+            <ellipse cx="32" cy="43.5" rx="3.4" ry="4.4" fill="#15132a"/>
+        </svg>
+        <div class="tomb-stone">
+            <span class="tomb-rip">R.I.P.</span>
+            <span class="tomb-code" th:text="${code != '' ? code : '?'}">404</span>
+        </div>
+        <div class="tomb-ground"></div>
+    </div>
     <h1 class="h3" th:text="${status ?: 'Error'}">Error</h1>
+    <p class="epitaph costume-only" th:switch="${code}">
+        <span th:case="'404'">Here lies a page that was never there, or that you may not see.</span>
+        <span th:case="'403'">Forbidden. Even the ghosts need the right role to pass.</span>
+        <span th:case="'422'">The spirits refused this request. Nothing was changed.</span>
+        <span th:case="'429'">Too many summonings at once. Wait a moment, then try again.</span>
+        <span th:case="'413'">That file is too heavy for the spirits to carry.</span>
+        <span th:case="'503'">The crypt is closed for a moment. Try again shortly.</span>
+        <span th:case="*">Something stirred in the machine room. The error is below.</span>
+    </p>
     <p th:text="${message ?: error ?: 'Something went wrong.'}">Something went wrong.</p>
     <a th:href="@{/}" class="btn btn-primary">Back to overview</a>
 </main>

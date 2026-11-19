@@ -1,0 +1,40 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org" xmlns:sec="http://www.thymeleaf.org/extras/spring-security">
+<head th:replace="~{fragments :: head('Report')}"></head>
+<body>
+<nav th:replace="~{fragments :: nav}"></nav>
+<main class="container-fluid px-4">
+    <div th:replace="~{fragments :: flash}"></div>
+    <h1 class="h3 mb-1">Report</h1>
+    <p class="text-secondary mb-3">Generate a report on one machine. Every report opens as an investigation that shows which
+        readings, model predictions and manual sections it used.</p>
+    <div class="col-xl-7 px-0">
+        <div class="card mb-3"><div class="card-body">
+            <h2 class="h5">Generate a report</h2>
+            <form sec:authorize="hasRole('ENGINEER')" th:action="@{/reports}" method="post" data-seance="report">
+                <textarea name="question" class="form-control mb-2" rows="3" maxlength="1000" required
+                          placeholder="Why is CNC-01 showing a high failure risk?"></textarea>
+                <div class="d-flex gap-2">
+                    <select name="machineCode" class="form-select" style="max-width:16rem">
+                        <option value="">Machine named in the text</option>
+                        <option th:each="m : ${machines}" th:value="${m.code()}" th:text="${m.code() + ' · ' + m.name()}">m</option>
+                    </select>
+                    <button class="btn btn-primary" type="submit">Generate report</button>
+                </div>
+            </form>
+            <p sec:authorize="!hasRole('ENGINEER')" class="text-secondary small mb-0">Only an engineer can generate a report.</p>
+        </div></div>
+        <div class="card mb-3"><div class="card-body small">
+            <h2 class="h5">How a report is made</h2>
+            <p class="mb-2">BAS Intelligence runs its Java investigation pipeline: telemetry trends, anomaly detectors, the
+                risk model, inspections and manual retrieval, then fault-signature rules. It is deterministic and uses no
+                language model. Your text picks the machine and adds words to the manual search; it is not interpreted,
+                so the report answers the same way whatever you ask.</p>
+            <p class="mb-0">To ask in your own words and get a written answer, use the
+                <a th:href="@{/assistant}">Kiro assistant</a>. Recommendations are only proposals until an engineer approves them.</p>
+        </div></div>
+    </div>
+</main>
+<th:block th:replace="~{fragments :: scripts}"></th:block>
+</body>
+</html>

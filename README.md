@@ -60,9 +60,10 @@ Thymeleaf + Bootstrap, no frontend build. Every AI-derived value is labelled **m
 | 1 Factory overview | `/` | machine counts (total, normal, needing attention), active alerts, awaiting approval, factory risk summary, recent maintenance and investigations |
 | 2 Machine monitoring | `/machines/{code}` | details, 5 telemetry charts (2 h raw, 24 h / 7 d from 5-minute rollups), connectivity, data quality (interval, gaps, completeness, stuck sensors, edge vs simulated), historical readings |
 | 3 Predictive analytics | `/analytics` | Isolation Forest scores, risk estimates and trends, risk-model performance and feature weights, per-prediction log-odds contributions, prediction history chart, versions of all models |
-| 4 Kiro assistant | `/assistant`, `/investigations/{id}` | questions in plain language, investigation history (pipeline vs Kiro), evidence map, linked `[E2]` citations, tool execution trace, confidence and limitations |
-| 5 Maintenance | `/maintenance` | pending approvals, recommendations, work orders with technician assignment and completion, incident reports, approval decisions and audit trail |
-| 6 Knowledge | `/manuals`, `/manuals/{id}` | upload, browse, full-text search linked to exact sections, extracted sections with page numbers, which investigations cited each section |
+| 4 Report | `/reports`, `/investigations/{id}` | generate a report with the deterministic Java pipeline; the investigation page shows the evidence map, linked `[E2]` citations, tool execution trace, confidence and limitations |
+| 5 Kiro assistant | `/assistant` | a conversation with Kiro in the browser: each message runs Kiro CLI on the server over MCP, limited to the engineer's machines; shows the tool calls, the reports Kiro wrote and the credits used ([how it is secured](docs/security.md#kiro-assistant-in-the-browser)) |
+| 6 Maintenance | `/maintenance` | pending approvals, recommendations, work orders with technician assignment and completion, incident reports, approval decisions and audit trail |
+| 7 Knowledge | `/manuals`, `/manuals/{id}` | upload, browse, full-text search linked to exact sections, extracted sections with page numbers, which investigations cited each section |
 
 On an investigation page every evidence item has an **open source** link: telemetry opens the machine charts,
 predictions open the analytics history, and manual evidence opens the cited section of the document.
@@ -124,6 +125,12 @@ are allowed, and `maintenance_create_draft` is `ask`, so Kiro needs a human yes 
 ./mcp/kiro-demo.sh --create-draft  # resume and explicitly approve that one write
 ```
 
+The **Kiro assistant** page runs Kiro for you from the browser with a second agent, `.kiro/agents/bas-web-assistant.json`.
+It has the read tools and the report tool only, always uses Kiro's Auto model, and gets a short-lived token that limits
+it to your machines. It needs Kiro
+CLI installed and signed in (`kiro-cli login`) for the user running the app, this folder trusted in Kiro, and the app
+on port 8080. Each message spends that Kiro login's credits.
+
 ## The agent
 
 One agent (Kiro) and nine Java tools: `getMachineStatus`, `getSensorReadings`, `detectAnomaly`, `predictFailureRisk`,
@@ -175,5 +182,6 @@ PlantSentinel does not vendor BAS or Mako Server. `edge/build-mako-macos.sh` dow
 ## Free-plan safeguards
 
 Small Hikari pool with no idle connections, background jobs that pause after 20 minutes without use (so Neon scales
-to zero), 3-day raw telemetry retention with 5-minute rollups kept 90 days, and images stored on local disk. Neon's
-free plan suspends instead of billing when a limit is reached.
+to zero), 3-day raw telemetry retention with 5-minute rollups kept 90 days, stored predictions kept 90 days
+(failure risk) or 30 days (ML-lab endpoints) with row limits that cap them at about 0.2 GB together, and images
+stored on local disk. Neon's free plan suspends instead of billing when a limit is reached.

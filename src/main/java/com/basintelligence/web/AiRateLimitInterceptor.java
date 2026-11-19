@@ -71,6 +71,7 @@ public class AiRateLimitInterceptor implements HandlerInterceptor {
             case INSPECTION -> limits.inspectionsPerMinute();
             case PREDICTION -> limits.predictionsPerMinute();
             case SEARCH -> limits.searchesPerMinute();
+            case ASSISTANT -> limits.assistantMessagesPerMinute();
         };
     }
 }

@@ -2,7 +2,8 @@
 
 ```
 src/main/java/com/basintelligence/
-  agent/          the nine MCP tools (BasMcpTools), AgentToolPolicy, audited tool wrapper, investigate_machine prompt
+  agent/          the nine MCP tools (BasMcpTools), AgentToolPolicy, audited tool wrapper, investigate_machine prompt;
+                  chat/ the Kiro assistant (runs Kiro CLI per message with a run token, stores conversations)
   analytics/      StreamingAnomalyDetector (envelope + z-score), TelemetryAnalyzer (trends + Isolation Forest)
   common/         AuditService, exceptions, Text helpers
   config/         BasProperties, SecurityConfig, API-key filter, StartupInitializer (seeding)

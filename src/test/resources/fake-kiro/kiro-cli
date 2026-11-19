@@ -1,0 +1,46 @@
+#!/bin/sh
+# Fake Kiro CLI for KiroAssistantScenarioIntegrationTest. Prints events like
+# `kiro-cli chat --output-format stream-json`, including the model in config_option_update events. Its reply reports
+# what it received: the message, the model, the session it was asked to resume, whether a run token and any trust
+# option arrived, and the names of its environment variables.
+resume=none
+trust=no
+model=none
+msg=""
+while [ $# -gt 0 ]; do
+  case "$1" in
+    --resume-id) resume="$2"; shift 2 ;;
+    --model) model="$2"; shift 2 ;;
+    --trust-all-tools|--trust-tools*|-a) trust=yes; shift ;;
+    --) msg="$2"; shift 2 ;;
+    *) shift ;;
+  esac
+done
+case "$BAS_RUN_TOKEN" in bas-run-*) token=ok ;; *) token=missing ;; esac
+names=$(env | cut -d= -f1 | sort | tr '\n' ' ')
+sid=sess_11111111-2222-3333-4444-555555555555
+[ "$resume" != none ] && sid="$resume"
+
+case "$msg" in
+  *SLEEP*) sleep 30; exit 0 ;;
+  *MCPDOWN*) echo "[ERROR] MCP server bas-intelligence failed to start" >&2; exit 3 ;;
+esac
+
+model_event() {
+  printf '{"type":"sessionUpdate","data":{"sessionId":"%s","update":{"sessionUpdate":"config_option_update","configOptions":[{"id":"mode","currentValue":"bas-web-assistant"},{"id":"model","name":"Model","category":"model","type":"select","currentValue":"%s"}]}}}\n' "$sid" "$1"
+}
+
+echo "[INFO] not a JSON event line"
+printf '{"type":"runStarted","data":{"payloadSchema":"acp","engine":"v3"}}\n'
+case "$msg" in
+  *NOMODEL*) ;;
+  *WRONGMODEL*) model_event claude-opus-5.5 ;;
+  *) model_event "$model" ;;
+esac
+printf '{"type":"sessionUpdate","data":{"sessionId":"%s","update":{"sessionUpdate":"session_info_update","_meta":{"kiro":{"turnStart":true,"kind":"turn_start"}}}}}\n' "$sid"
+case "$msg" in
+  *SWITCHMODEL*) model_event claude-opus-5.5; sleep 30 ;;
+esac
+printf '{"type":"sessionUpdate","data":{"sessionId":"%s","update":{"sessionUpdate":"agent_message_chunk","content":{"type":"text","text":"Fake Kiro "}}}}\n' "$sid"
+printf '{"type":"sessionUpdate","data":{"sessionId":"%s","update":{"sessionUpdate":"session_info_update","_meta":{"kiro":{"promptTurnSummaries":[{"unit":"credit","unitPlural":"credits","usage":0.25}],"kind":"turn_complete"}}}}}\n' "$sid"
+printf '{"type":"runFinished","data":{"sessionId":"%s","status":"success","stopReason":"end_turn","finalText":"**Fake Kiro** answered: %s | model=%s | resume=%s | token=%s | trust=%s | env=%s","finalTextTruncated":false}}\n' "$sid" "$msg" "$model" "$resume" "$token" "$trust" "$names"

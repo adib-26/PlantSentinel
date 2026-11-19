@@ -11,8 +11,12 @@ import org.springframework.ai.mcp.McpToolUtils;
 import org.springframework.ai.tool.ToolCallback;
 import org.springframework.ai.tool.definition.ToolDefinition;
 import org.springframework.ai.tool.metadata.ToolMetadata;
+import org.springframework.security.core.Authentication;
+import org.springframework.security.core.context.SecurityContext;
+import org.springframework.security.core.context.SecurityContextHolder;
 
 import com.basintelligence.common.ActivityTracker;
+import com.basintelligence.common.AgentRun;
 
 /**
  * Wraps every MCP tool: checks the {@link AgentToolPolicy}, records the call in {@code agent_tool_audit}, runs it
@@ -83,10 +87,12 @@ public class AuditingToolCallback implements ToolCallback {
                 version = exchange.getClientInfo().version();
             }
         }
-        long callId = audit.start(sessionId, client, version, BasMcpTools.AGENT, tool, toolInput);
+        Authentication caller = SecurityContextHolder.getContext().getAuthentication();
+        AgentRun run = caller != null && caller.getDetails() instanceof AgentRun r ? r : null;
+        long callId = audit.start(sessionId, client, version, BasMcpTools.AGENT, run, tool, toolInput);
         long started = System.nanoTime();
         try {
-            policy.check(tool, sessionId, toolInput);
+            policy.check(tool, sessionId, toolInput, run != null);
         } catch (AgentToolPolicy.AgentPolicyViolation e) {
             audit.finish(callId, AgentAuditService.Outcome.DENIED, e.getMessage(), elapsed(started));
             observe(tool, "DENIED", started, toolInput, null);
@@ -96,12 +102,18 @@ public class AuditingToolCallback implements ToolCallback {
             return callRecordTool(tool, toolInput, callId, started);
         }
         Future<String> result = executor.submit(() -> {
+            // Read tools run on another thread. Give it the caller's identity, so machine access is scoped exactly as
+            // for the request (a Kiro assistant run sees only its engineer's machines).
+            SecurityContext context = SecurityContextHolder.createEmptyContext();
+            context.setAuthentication(caller);
+            SecurityContextHolder.setContext(context);
             AgentCallContext.set(callId);
             try {
                 // The @Tool methods do not take a ToolContext, so call the plain variant.
                 return delegate.call(toolInput);
             } finally {
                 AgentCallContext.clear();
+                SecurityContextHolder.clearContext();
             }
         });
         long timeoutMs = policy.timeout(tool).toMillis();

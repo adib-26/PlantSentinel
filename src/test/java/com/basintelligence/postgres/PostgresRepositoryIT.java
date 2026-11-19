@@ -6,6 +6,9 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import java.time.Duration;
 import java.time.Instant;
 import java.time.temporal.ChronoUnit;
+import java.util.ArrayList;
+import java.util.Collections;
+import java.util.List;
 import java.util.Random;
 
 import org.junit.jupiter.api.Test;
@@ -13,17 +16,21 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.boot.testcontainers.service.connection.ServiceConnection;
 import org.springframework.dao.DataIntegrityViolationException;
+import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.jdbc.core.simple.JdbcClient;
 import org.springframework.test.context.ActiveProfiles;
 import org.testcontainers.containers.PostgreSQLContainer;
 import org.testcontainers.junit.jupiter.Container;
 import org.testcontainers.junit.jupiter.Testcontainers;
 
+import com.basintelligence.common.Text;
 import com.basintelligence.investigation.InvestigationService;
 import com.basintelligence.knowledge.ManualService;
 import com.basintelligence.machine.Machine;
 import com.basintelligence.machine.MachineService;
 import com.basintelligence.machine.MachineType;
+import com.basintelligence.ml.MlPredictionLog;
+import com.basintelligence.ml.MlPredictionService;
 import com.basintelligence.risk.PredictionService;
 import com.basintelligence.risk.PredictionVerification;
 import com.basintelligence.telemetry.TelemetryReading;
@@ -38,9 +45,10 @@ import com.basintelligence.vision.SampleImageGenerator;
 
 /**
  * Repository tests on real PostgreSQL 17 (the engine Neon runs): Flyway migrations, SQL queries, constraints and
- * PostgreSQL-only full-text search. Skipped automatically without Docker. Run with {@code ./mvnw verify}.
+ * PostgreSQL-only full-text search. Skipped automatically without Docker. Run with {@code ./mvnw verify}. The
+ * prediction row limits are at their minimum so the limit SQL runs; no other test here writes that many rows.
  */
-@SpringBootTest
+@SpringBootTest(properties = {"bas.predictions.max-rows=1000", "bas.predictions.ml-max-rows=1000"})
 @ActiveProfiles("test")
 @Testcontainers(disabledWithoutDocker = true)
 class PostgresRepositoryIT {
@@ -50,6 +58,9 @@ class PostgresRepositoryIT {
     static PostgreSQLContainer<?> postgres = new PostgreSQLContainer<>("postgres:17-alpine");
 
     @Autowired JdbcClient jdbc;
+    @Autowired JdbcTemplate jdbcTemplate;
+    @Autowired MlPredictionService ml;
+    @Autowired MlPredictionLog mlLog;
     @Autowired MachineService machines;
     @Autowired TelemetryRepository telemetryRepository;
     @Autowired TelemetryService telemetry;
@@ -165,5 +176,64 @@ class PostgresRepositoryIT {
                 INSERT INTO approvals (recommendation_id, decision, proposed_by, decided_by, decided_at)
                 VALUES (:r, 'REJECTED', 'bas-diagnostics', 'engineer3', now())""").param("r", rec).update())
                 .isInstanceOf(DataIntegrityViolationException.class);
+    }
+
+    /** The retention and row-limit SQL (id windows, OFFSET, NOT EXISTS) on PostgreSQL, with the limits at 1,000. */
+    @Test
+    void predictionRetentionAndRowLimitsOnPostgres() {
+        Machine m = machines.register(new MachineService.RegisterMachine("PG-04", "pg", MachineType.CNC_MILL, null), "test");
+        var caller = new MlPredictionLog.Caller(m.id(), "engineer");
+        var batch = Collections.nCopies(600, new MlPredictionService.ProcessInput('L', 299.0, 309.0, 1300, 68.0, 230));
+        ml.predictProcessFailure(batch, caller);
+        List<Long> newest = ml.predictProcessFailure(batch, caller).stream()
+                .map(MlPredictionService.ProcessPrediction::predictionId).toList();
+        assertThat(count("ml_predictions")).isEqualTo(1000);
+        assertThat(jdbc.sql("SELECT COUNT(*) FROM ml_predictions WHERE id IN (:ids)").param("ids", newest)
+                .query(Long.class).single()).isEqualTo(600);
+
+        var window = ml.analyzeBearingVibration(new Random(4).doubles(1024, -0.1, 0.1).toArray(), caller).getFirst();
+        var fault = jdbc.sql("SELECT risk_score, probabilities_json FROM ml_predictions WHERE id = :id")
+                .param("id", window.conditionPredictionId()).query().singleRow();
+        assertThat(fault.get("risk_score")).isNull();
+        assertThat((String) fault.get("probabilities_json")).startsWith("{\"normal\":");
+
+        jdbc.sql("UPDATE ml_predictions SET predicted_at = :at WHERE id = :id").param("id", newest.getFirst())
+                .param("at", Text.utc(Instant.now().minus(Duration.ofDays(31)))).update();
+        assertThat(mlLog.deleteOlderThan(Instant.now().minus(Duration.ofDays(30)))).isEqualTo(1);
+
+        // failure-risk: one cited and ten expired rows first, then enough recent ones to pass the limit
+        Instant old = Instant.now().minus(Duration.ofDays(100));
+        insertPredictions(m.id(), old, 11);
+        long cited = jdbc.sql("SELECT MIN(id) FROM model_predictions WHERE device_id = :d").param("d", m.id())
+                .query(Long.class).single();
+        jdbc.sql("""
+                INSERT INTO failure_events (device_id, occurred_at, failure_mode, description, confirmed_by, confirmed_at,
+                    prior_prediction_id)
+                VALUES (:d, now(), 'BEARING', 'Outer race spalling', 'engineer', now(), :p)""")
+                .param("d", m.id()).param("p", cited).update();
+        insertPredictions(m.id(), Instant.now().minus(Duration.ofDays(1)), 1_050);
+
+        assertThat(predictions.deleteOlderThan(Instant.now().minus(Duration.ofDays(90)))).isEqualTo(10);
+        long rows = count("model_predictions");
+        assertThat(predictions.enforceRowLimit()).isEqualTo((int) (rows - 1000));
+        assertThat(count("model_predictions")).isEqualTo(1000);
+        assertThat(jdbc.sql("SELECT prior_prediction_id FROM failure_events WHERE device_id = :d").param("d", m.id())
+                .query(Long.class).single()).isEqualTo(cited);
+    }
+
+    private void insertPredictions(java.util.UUID device, Instant from, int n) {
+        List<Object[]> rows = new ArrayList<>();
+        for (int i = 0; i < n; i++) {
+            rows.add(new Object[] {device, Text.utc(from.plus(Duration.ofMinutes(i)))});
+        }
+        jdbcTemplate.batchUpdate("""
+                INSERT INTO model_predictions (device_id, predicted_at, trigger_type, probability, risk_level, readings_used,
+                    model_name, model_version, input_reference, contributions_json)
+                VALUES (?, ?, 'API', 0.2, 'LOW', 12, 'failure-risk', 'test', 'telemetry[test] n=12', '[]')""", rows);
+    }
+
+    /** Table names are constants of this test, never input. */
+    private long count(String table) {
+        return jdbc.sql("SELECT COUNT(*) FROM " + table).query(Long.class).single();
     }
 }

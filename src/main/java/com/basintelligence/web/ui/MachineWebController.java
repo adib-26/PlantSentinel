@@ -154,6 +154,30 @@ public class MachineWebController {
     }
 
     /**
+     * The caller's machines with their health and current failure risk (the same assessment the overview cards
+     * show), for the command palette and the Kiro ghost in the navigation bar. Scoped by {@link MachineService#list()}
+     * like the overview, so it never lists another factory's machines.
+     */
+    @GetMapping(path = "/machines.json", produces = MediaType.APPLICATION_JSON_VALUE)
+    @com.basintelligence.web.RateLimited(com.basintelligence.web.RateLimited.Kind.PREDICTION)
+    @ResponseBody
+    public List<Map<String, Object>> machinesJson() {
+        return machines.list().stream().map(m -> {
+            Map<String, Object> row = new LinkedHashMap<>();
+            row.put("code", m.code());
+            row.put("name", m.name());
+            row.put("type", m.type().displayName());
+            row.put("location", m.location());
+            row.put("health", m.healthStatus() == null ? "UNKNOWN" : m.healthStatus().name());
+            row.put("lastSeenAt", m.lastSeenAt() == null ? null : m.lastSeenAt().toString());
+            var assessment = risk.assess(m);
+            row.put("risk", assessment.map(a -> a.level().name()).orElse(null));
+            row.put("riskScore", assessment.map(a -> a.probability()).orElse(null));
+            return row;
+        }).toList();
+    }
+
+    /**
      * Chart data. Up to 3 hours uses raw readings; longer windows (up to 30 days) use 5-minute rollups so the
      * browser and database never move more than a few thousand points.
      */

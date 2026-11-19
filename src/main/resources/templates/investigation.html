@@ -11,7 +11,7 @@
             <h1 class="h3 mb-0">
                 <span th:text="'INV-' + ${inv.id()}">INV-1</span>
                 <span th:replace="~{fragments :: badge(${inv.status()})}"></span>
-                <span th:if="${inv.createdViaToolCall() != null}" class="badge text-bg-warning">Kiro via MCP</span>
+                <span th:if="${inv.createdViaToolCall() != null}" class="badge text-bg-warning"><svg class="hi costume-only" aria-hidden="true"><use href="#i-ghost"/></svg> Kiro via MCP</span>
             </h1>
             <div>
                 <a th:href="@{/machines/{code}(code=${m.code()})}" th:text="${m.code()}">CNC-01</a>
@@ -38,6 +38,15 @@
                 <a th:each="e : ${entry.value}" class="cite ms-1" th:href="'#' + ${e.refLabel()}" th:text="${e.refLabel()}" th:title="${e.title()}">E1</a>
             </span>
         </div>
+        <div class="ev-legend costume-only small" aria-hidden="true">
+            <span class="ev-legend-title">How solid is it?</span>
+            <span class="ev-swatch ev-MEASURED">solid · measured</span>
+            <span class="ev-swatch ev-RULE_BASED">etched · rule-based</span>
+            <span class="ev-swatch ev-MODEL_PREDICTION">misty · model estimate</span>
+            <span class="ev-swatch ev-DOCUMENTED">parchment · documented</span>
+            <span class="ev-swatch ev-AI_INTERPRETATION">ghostly · AI, not verified</span>
+            <span class="text-secondary">Hover a class to light up its evidence. Hover a citation to see it.</span>
+        </div>
     </div></div>
 
     <div class="row g-3">
@@ -48,9 +57,9 @@
                 <div class="explanation" th:utext="${cited.get('explanation')}">explanation</div>
             </div></div>
 
-            <div class="card mb-3" th:each="entry : ${byClass}" th:if="${entry.key.name() == 'AI_INTERPRETATION'}"><div class="card-body">
+            <div class="card mb-3 ai-ghost" th:each="entry : ${byClass}" th:if="${entry.key.name() == 'AI_INTERPRETATION'}"><div class="card-body">
                 <h2 class="h5">AI interpretation <span class="badge text-bg-warning fw-normal">not verified</span></h2>
-                <div th:each="e : ${entry.value}" class="evidence-item p-2" th:id="${e.refLabel()}">
+                <div th:each="e : ${entry.value}" class="evidence-item p-2" th:id="${e.refLabel()}" data-ev-class="AI_INTERPRETATION">
                     <div class="small text-secondary mb-1" th:text="${e.refLabel() + ' · ' + e.title()}">E11</div>
                     <div class="explanation" th:utext="${cited.get(e.refLabel())}">text</div>
                 </div>
@@ -66,7 +75,9 @@
             <div class="card mb-3" id="trace"><div class="card-body">
                 <h2 class="h5">Tool execution trace</h2>
                 <div th:if="${!trace.isEmpty()}">
-                    <p class="small text-secondary">Kiro asked for each tool; Java checked the policy, ran it and logged it (agent_tool_audit).</p>
+                    <p class="small text-secondary">Kiro asked for each tool; Java checked the policy, ran it and logged it (agent_tool_audit).
+                        <span th:if="${trace.get(0).onBehalfOf() != null}"
+                              th:text="${'Started from the Kiro assistant page for ' + trace.get(0).onBehalfOf() + ', limited to their machines.'}">for</span></p>
                     <div th:each="c, it : ${trace}" class="trace-step mb-2 small" th:classappend="'status-' + ${c.status()}">
                         <div>
                             <span class="text-secondary" th:text="${(it.index + 1) + '.'}">1.</span>
@@ -93,8 +104,9 @@
 
             <div class="card mb-3"><div class="card-body">
                 <h2 class="h5">Maintenance recommendations</h2>
-                <p class="small text-secondary">Nothing is actioned without an engineer's decision. Proposers cannot review their own.</p>
-                <div th:each="r : ${view.recommendations()}" class="border rounded p-3 mb-2">
+                <p class="small text-secondary">Nothing is actioned without an engineer's decision. Proposers cannot review their own.<span class="costume-only"> Two witnesses for every pact.</span></p>
+                <div th:each="r : ${view.recommendations()}" class="border rounded p-3 mb-2 rec" th:classappend="'rec-' + ${r.status()}">
+                    <svg class="rec-seal costume-only" viewBox="0 0 24 24" aria-hidden="true"><use href="#i-seal"/></svg>
                     <div class="d-flex justify-content-between mb-1">
                         <div>
                             <span th:replace="~{fragments :: badge(${r.status()})}"></span>
@@ -113,7 +125,7 @@
                     </div>
                     <form sec:authorize="hasRole('ENGINEER')"
                           th:if="${r.status().name() == 'PROPOSED' and inv.status().name() != 'CLOSED' and r.proposedBy() != #authentication.name}"
-                          th:action="@{/recommendations/{id}/review(id=${r.id()})}" method="post" class="d-flex gap-2 mt-2">
+                          th:action="@{/recommendations/{id}/review(id=${r.id()})}" method="post" class="d-flex gap-2 mt-2" data-review>
                         <input type="hidden" name="investigationId" th:value="${inv.id()}">
                         <input name="comment" class="form-control form-control-sm" maxlength="1000" placeholder="Review comment">
                         <button name="approve" value="true" class="btn btn-sm btn-success" type="submit">Approve</button>
@@ -149,7 +161,7 @@
 
             <div class="card mb-4" id="report"><div class="card-body">
                 <h2 class="h5">Incident report</h2>
-                <div th:if="${view.report().isPresent()}">
+                <div th:if="${view.report().isPresent()}" class="report-sealed">
                     <p class="small text-secondary" th:text="${'Issued ' + @fmt.time(view.report().get().generatedAt()) + ' by ' + view.report().get().generatedBy()}">issued</p>
                     <a class="btn btn-sm btn-outline-secondary mb-2" th:href="@{/investigations/{id}/report.md(id=${inv.id()})}">Download Markdown</a>
                     <div class="report-body border rounded p-2 bg-light" th:text="${view.report().get().bodyMarkdown()}">report</div>
@@ -157,7 +169,7 @@
                 <div th:unless="${view.report().isPresent()}">
                     <p class="small text-secondary" th:if="${inv.status().name() == 'OPEN'}">The report can be issued once every recommendation has been approved or rejected.</p>
                     <form sec:authorize="hasRole('ENGINEER')" th:if="${inv.status().name() == 'REVIEWED'}"
-                          th:action="@{/investigations/{id}/report(id=${inv.id()})}" method="post">
+                          th:action="@{/investigations/{id}/report(id=${inv.id()})}" method="post" data-seance="report-issue">
                         <button class="btn btn-primary" type="submit">Generate incident report and close</button>
                     </form>
                 </div>
@@ -168,10 +180,12 @@
             <div class="card mb-4"><div class="card-body">
                 <h2 class="h5">Evidence</h2>
                 <p class="small text-secondary">Grouped from most to least directly observed. "Open source" shows where each item came from.</p>
-                <div th:each="entry : ${byClass}" th:unless="${entry.key.name() == 'AI_INTERPRETATION'}" class="mb-3">
+                <div th:each="entry : ${byClass}" th:unless="${entry.key.name() == 'AI_INTERPRETATION'}" class="mb-3 ev-group"
+                     th:classappend="'ev-' + ${entry.key.name()}">
                     <div class="mb-2"><span th:replace="~{fragments :: classBadge(${entry.key})}"></span>
                         <span class="small text-secondary" th:text="${entry.key.meaning()}">meaning</span></div>
-                    <div th:each="e : ${entry.value}" class="evidence-item border rounded p-2 mb-2" th:id="${e.refLabel()}">
+                    <div th:each="e : ${entry.value}" class="evidence-item border rounded p-2 mb-2" th:id="${e.refLabel()}"
+                         th:attr="data-ev-class=${entry.key.name()}">
                         <div class="d-flex justify-content-between">
                             <strong><span class="badge text-bg-dark" th:text="${e.refLabel()}">E1</span> <span th:text="${e.title()}">title</span></strong>
                             <a class="small text-nowrap" th:href="${links.get(e.refLabel())}">open source</a>

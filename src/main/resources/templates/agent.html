@@ -35,7 +35,9 @@
                         <td th:text="${c.id()}">1</td>
                         <td class="text-nowrap" th:text="${@fmt.time(c.calledAt())}">t</td>
                         <td><code th:text="${mcpNames.get(c.toolName()) ?: c.toolName()}">tool</code>
-                            <div class="text-secondary" th:text="${'Java: ' + c.toolName()}">java</div></td>
+                            <div class="text-secondary" th:text="${'Java: ' + c.toolName()}">java</div>
+                            <div th:if="${c.onBehalfOf() != null}" class="text-secondary"
+                                 th:text="${'Kiro assistant run for ' + c.onBehalfOf()}">for</div></td>
                         <td class="text-break"><code class="small" th:text="${c.argumentsJson()}">{}</code></td>
                         <td><span class="badge" th:classappend="${c.status() == 'SUCCESS'} ? 'text-bg-success' : (${c.status() == 'ERROR'} ? 'text-bg-danger' : 'text-bg-secondary')"
                                   th:text="${c.status()}" th:title="${c.errorMessage()}">OK</span></td>

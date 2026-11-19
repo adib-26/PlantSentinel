@@ -29,9 +29,19 @@ bas:
   telemetry:
     retention: 3d
     rollup-retention: 90d
+  # Worst case about 0.2 GB of the free plan's 1 GB: 100,000 failure-risk rows (about 1.8 KB each, enough for 90 days
+  # of 15-minute predictions on 11 machines in constant use) and 50,000 ML-lab rows (about 0.5 KB each).
+  predictions:
+    retention: 90d
+    max-rows: 100000
+    ml-retention: 30d
+    ml-max-rows: 50000
   simulator:
     enabled: ${BAS_SIMULATOR_ENABLED:true}
     interval: 30s
+  # Off unless switched on: every message spends the server's Kiro credits.
+  assistant:
+    enabled: ${BAS_KIRO_ASSISTANT_ENABLED:false}
   security:
     users:
       - username: ${BAS_ADMIN_USER:admin}

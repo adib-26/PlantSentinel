@@ -45,3 +45,7 @@ bas:
     inspections-per-minute: 10000
     predictions-per-minute: 10000
     searches-per-minute: 10000
+    assistant-messages-per-minute: 10000
+  # Tests never start the real Kiro CLI; KiroAssistantScenarioIntegrationTest runs a fake one.
+  assistant:
+    enabled: false

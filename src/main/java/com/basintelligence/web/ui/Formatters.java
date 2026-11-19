@@ -73,6 +73,11 @@ public class Formatters {
         return s < 120 ? s + " s" : s < 7200 ? (s / 60) + " min" : (s / 3600) + " h";
     }
 
+    /** The time between two instants, e.g. "40 s"; "–" if either is missing. */
+    public String elapsed(Instant from, Instant to) {
+        return from == null || to == null ? "–" : duration(Duration.between(from, to));
+    }
+
     /**
      * Escapes text for HTML, then turns evidence citations such as [E2] or [E1, E4] into links to the evidence item
      * on the same page. Used with th:utext; the escaping happens first, so user or agent text cannot inject markup.
@@ -97,15 +102,77 @@ public class Formatters {
         return Math.round(Math.clamp(logOdds * 15, 0, 100));
     }
 
+    private static final java.util.regex.Pattern HEADING = java.util.regex.Pattern.compile("#{1,6}\\s+(.*)");
+    private static final java.util.regex.Pattern TABLE_SEPARATOR = java.util.regex.Pattern.compile("\\|?\\s*:?-{3,}:?\\s*(\\|\\s*:?-{3,}:?\\s*)*\\|?");
+
+    /**
+     * Kiro's Markdown reply as HTML, for th:utext inside an element with {@code white-space: pre-wrap} (rendered in the
+     * controller: templates may not call beans inside th:utext). Every line is
+     * HTML-escaped first; then only fixed tags are added: headings, bold, inline code, pipe tables, and links from
+     * "INV-12" to that report. Lists stay as text lines. So nothing in the reply can inject markup or scripts.
+     */
+    public String markdown(String text) {
+        if (text == null) {
+            return "";
+        }
+        String[] lines = text.replace("\r\n", "\n").split("\n", -1);
+        StringBuilder out = new StringBuilder();
+        for (int i = 0; i < lines.length; i++) {
+            String line = lines[i];
+            if (isTableRow(line) && i + 1 < lines.length && TABLE_SEPARATOR.matcher(lines[i + 1].strip()).matches()) {
+                out.append("<div class=\"table-responsive\"><table class=\"table table-sm table-bordered small w-auto mb-1\"><thead><tr>");
+                cells(line).forEach(c -> out.append("<th>").append(inline(c)).append("</th>"));
+                out.append("</tr></thead><tbody>");
+                i += 2;
+                while (i < lines.length && isTableRow(lines[i])) {
+                    out.append("<tr>");
+                    cells(lines[i]).forEach(c -> out.append("<td>").append(inline(c)).append("</td>"));
+                    out.append("</tr>");
+                    i++;
+                }
+                out.append("</tbody></table></div>");
+                i--;
+                continue;
+            }
+            java.util.regex.Matcher heading = HEADING.matcher(line.strip());
+            if (heading.matches()) {
+                out.append("<div class=\"fw-semibold mt-2\">").append(inline(heading.group(1))).append("</div>");
+                continue;
+            }
+            out.append(inline(line));
+            if (i < lines.length - 1) {
+                out.append('\n');
+            }
+        }
+        return out.toString();
+    }
+
+    private static boolean isTableRow(String line) {
+        String s = line.strip();
+        return s.length() > 1 && s.startsWith("|") && s.endsWith("|");
+    }
+
+    private static java.util.List<String> cells(String row) {
+        String s = row.strip();
+        return java.util.Arrays.stream(s.substring(1, s.length() - 1).split("\\|", -1)).map(String::strip).toList();
+    }
+
+    private static String inline(String text) {
+        String s = org.springframework.web.util.HtmlUtils.htmlEscape(text);
+        s = s.replaceAll("`([^`]{1,200})`", "<code>$1</code>");
+        s = s.replaceAll("\\*\\*([^*]{1,400})\\*\\*", "<strong>$1</strong>");
+        return s.replaceAll("\\bINV-(\\d{1,9})\\b", "<a href=\"/investigations/$1\">INV-$1</a>");
+    }
+
     /** Bootstrap contextual colour for statuses, severities, risk levels and priorities. */
     public String tone(Object status) {
         if (status == null) {
             return "secondary";
         }
         return switch (status.toString()) {
-            case "NORMAL", "LOW", "PASS", "APPROVED", "CLOSED", "COMPLETED", "ONLINE", "SUCCESS", "MEASURED", "EDGE", "VERIFIED" -> "success";
-            case "WARNING", "MEDIUM", "PROPOSED", "OPEN", "STALE", "AI_INTERPRETATION", "SIMULATOR" -> "warning";
-            case "CRITICAL", "HIGH", "URGENT", "DEFECT", "REJECTED", "OFFLINE", "ERROR", "DENIED", "MISMATCH", "FAIL" -> "danger";
+            case "NORMAL", "LOW", "PASS", "APPROVED", "CLOSED", "COMPLETED", "ONLINE", "SUCCESS", "MEASURED", "EDGE", "VERIFIED", "DONE" -> "success";
+            case "WARNING", "MEDIUM", "PROPOSED", "OPEN", "STALE", "AI_INTERPRETATION", "SIMULATOR", "RUNNING" -> "warning";
+            case "CRITICAL", "HIGH", "URGENT", "DEFECT", "REJECTED", "OFFLINE", "ERROR", "DENIED", "MISMATCH", "FAIL", "FAILED", "TIMED_OUT" -> "danger";
             case "REVIEWED", "PLANNED", "MODEL_PREDICTION", "RULE_BASED", "DOCUMENTED" -> "info";
             default -> "secondary";
         };

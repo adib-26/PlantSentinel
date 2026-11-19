@@ -23,6 +23,7 @@ import org.springframework.security.web.authentication.UsernamePasswordAuthentic
 import org.springframework.security.web.header.writers.ReferrerPolicyHeaderWriter;
 import org.springframework.security.web.session.HttpSessionEventPublisher;
 
+import com.basintelligence.agent.chat.AgentRunTokens;
 import com.basintelligence.common.AuditService;
 import com.basintelligence.telemetry.EdgeGatewayService;
 import com.basintelligence.users.UserAccountService;
@@ -60,9 +61,11 @@ public class SecurityConfig {
 
     @Bean
     @Order(2)
-    SecurityFilterChain agentChain(HttpSecurity http, BasProperties props) throws Exception {
+    SecurityFilterChain agentChain(HttpSecurity http, BasProperties props, AgentRunTokens runTokens, AuditService audit)
+            throws Exception {
         return machineChain(http.securityMatcher("/mcp", "/mcp/**"),
-                new ApiKeyAuthenticationFilter(props.security().agentApiKey(), "kiro-agent", "AGENT"), "AGENT");
+                new ApiKeyAuthenticationFilter(props.security().agentApiKey(), "kiro-agent", "AGENT", runTokens::verify,
+                        audit), "AGENT");
     }
 
     private static SecurityFilterChain machineChain(HttpSecurity http, jakarta.servlet.Filter filter, String role)

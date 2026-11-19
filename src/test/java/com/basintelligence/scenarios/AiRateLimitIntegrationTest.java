@@ -62,9 +62,9 @@ class AiRateLimitIntegrationTest {
     void webInvestigationsAreLimitedToo() throws Exception {
         var admin = user("admin").roles("ADMIN", "ENGINEER", "VIEWER");
         // the first request is allowed (and fails with 422 because the question names no machine)
-        mvc.perform(post("/assistant/ask").with(admin).with(csrf()).param("question", "anything wrong?"))
+        mvc.perform(post("/reports").with(admin).with(csrf()).param("question", "anything wrong?"))
                 .andExpect(status().isUnprocessableEntity());
-        mvc.perform(post("/assistant/ask").with(admin).with(csrf()).param("question", "anything wrong?"))
+        mvc.perform(post("/reports").with(admin).with(csrf()).param("question", "anything wrong?"))
                 .andExpect(status().isTooManyRequests()).andExpect(header().exists("Retry-After"));
     }
 }

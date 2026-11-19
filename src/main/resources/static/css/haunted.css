@@ -1,0 +1,1026 @@
+/* =====================================================================================================
+   BAS Intelligence · the "haunted plant" costume
+   The spooky parts carry meaning, so the costume makes the plant easier to read, not harder:
+     solid stone = measured · etched = rule-based · mist = model estimate · parchment = documented ·
+     translucent ghost = AI interpretation (not verified)
+     aura strength = failure risk · flicker and a peeking ghost = needs attention now ·
+     cobwebs and fading = data has gone quiet (stale or offline)
+     poltergeist / apparition / omen / grave = sensor fault / anomaly / prediction / confirmed failure
+     wax seal = approved by a second engineer (four-eyes rule)
+   Everything spooky is scoped to html[data-costume="haunted"]. "Daylight" keeps the original look; the
+   widgets below the first section (gauges, palette, previews) also work in daylight.
+   ===================================================================================================== */
+
+/* ---------- 0. Costume switching ---------- */
+html:not([data-costume="haunted"]) .costume-only { display: none !important; }
+[data-costume="haunted"] .daylight-only { display: none !important; }
+.icon-sprite { position: absolute; width: 0; height: 0; overflow: hidden; }
+.hi { width: 1.05em; height: 1.05em; vertical-align: -.17em; flex-shrink: 0; }
+
+/* ---------- 1. Widgets that work in both costumes ---------- */
+.haunt-controls { flex-wrap: nowrap; }
+.navbar .nav-link, .navbar .navbar-text, .navbar form .btn { white-space: nowrap; }
+.haunt-summon { display: inline-flex; align-items: center; gap: .4rem; white-space: nowrap; }
+@media (max-width: 1499.98px) {
+    .haunt-summon > span, .haunt-costume-label { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
+    .haunt-costume { padding-left: .45rem; }
+}
+@media (min-width: 768px) and (max-width: 1299.98px) {
+    .navbar .nav-link .nav-ico { display: none !important; }
+    .navbar .navbar-text { display: none; }
+}
+.haunt-summon kbd { font-size: .68rem; padding: .05rem .35rem; border-radius: .3rem; background: rgba(255, 255, 255, .16); color: inherit; box-shadow: none; }
+.haunt-ambience { display: inline-flex; align-items: center; justify-content: center; width: 2rem; height: 2rem; padding: 0; border-radius: 999px; }
+.haunt-ambience .ico-on { display: none; }
+.haunt-ambience[aria-pressed="true"] .ico-on { display: inline-block; }
+.haunt-ambience[aria-pressed="true"] .ico-off { display: none; }
+.haunt-costume {
+    display: inline-flex; align-items: center; gap: .45rem; white-space: nowrap;
+    border: 1px solid rgba(255, 255, 255, .28); background: transparent; color: rgba(255, 255, 255, .86);
+    border-radius: 999px; padding: .22rem .32rem .22rem .62rem; font-size: .8rem; line-height: 1.2;
+    transition: border-color .2s, color .2s, box-shadow .3s;
+}
+.haunt-costume:hover { color: #fff; border-color: rgba(255, 255, 255, .55); }
+.haunt-costume:focus-visible { outline: 2px solid #ffb84d; outline-offset: 2px; }
+.haunt-switch { position: relative; display: inline-block; width: 2.05rem; height: 1.15rem; border-radius: 999px; background: rgba(255, 255, 255, .2); transition: background .35s; }
+.haunt-switch > span {
+    position: absolute; top: .15rem; left: .15rem; width: .85rem; height: .85rem; border-radius: 50%; background: #fff;
+    transition: transform .35s cubic-bezier(.5, 1.6, .4, 1), background .35s, box-shadow .35s;
+}
+.haunt-costume[aria-checked="true"] .haunt-switch { background: linear-gradient(90deg, #ff7e24, #ffb84d); }
+.haunt-costume[aria-checked="true"] .haunt-switch > span { transform: translateX(.9rem); background: #1b0d03; box-shadow: 0 0 9px rgba(255, 140, 40, .95); }
+.login-costume { margin: 1.25rem auto 0; display: flex; color: #495057; border-color: rgba(0, 0, 0, .2); }
+.login-costume:hover { color: #212529; border-color: rgba(0, 0, 0, .4); }
+.login-costume .haunt-switch { background: rgba(0, 0, 0, .15); }
+
+/* failure-risk meter under each machine card's risk */
+.haunt-meter { width: 8.5rem; height: 4px; margin-top: .4rem; border-radius: 4px; background: rgba(0, 0, 0, .08); overflow: hidden; }
+.haunt-meter > span {
+    display: block; height: 100%; border-radius: inherit;
+    background: linear-gradient(90deg, #198754, #ffc107 40%, #fd7e14 62%, #dc3545) 0 0 / 8.5rem 100% no-repeat;
+}
+
+/* the risk "omen": a ring gauge around the probability */
+.omen { position: relative; flex-shrink: 0; width: 112px; height: 112px; display: grid; place-items: center; border-radius: 50%; --omen: #0d6efd; --omen-rgb: 13, 110, 253; }
+.omen.risk-LOW { --omen: #198754; --omen-rgb: 25, 135, 84; }
+.omen.risk-MEDIUM { --omen: #e0a800; --omen-rgb: 224, 168, 0; }
+.omen.risk-HIGH { --omen: #fd7e14; --omen-rgb: 253, 126, 20; }
+.omen.risk-CRITICAL { --omen: #dc3545; --omen-rgb: 220, 53, 69; }
+.omen-ring { position: absolute; inset: 0; width: 100%; height: 100%; transform: rotate(-90deg); overflow: visible; }
+.omen-ring circle { fill: none; stroke-width: 8; }
+.omen-track { stroke: rgba(0, 0, 0, .08); }
+.omen-value { stroke: var(--omen); stroke-linecap: round; stroke-dasharray: var(--p, 0) 100; animation: omen-fill 1.5s cubic-bezier(.3, 1, .4, 1) backwards; }
+.omen .display-6 { position: relative; font-size: 1.6rem; font-weight: 600; font-variant-numeric: tabular-nums; }
+@keyframes omen-fill { from { stroke-dasharray: 0 100; } }
+
+/* the plant-wide "EMF meter": needle = mean failure risk, one light per machine */
+.emf { display: grid; justify-items: center; margin: .2rem 0 .9rem; }
+.emf-dial { width: 100%; max-width: 250px; height: auto; overflow: visible; }
+.emf-zone { fill: none; stroke-width: 9; stroke-linecap: round; }
+.emf-zone.z1 { stroke: #198754; } .emf-zone.z2 { stroke: #ffc107; } .emf-zone.z3 { stroke: #fd7e14; } .emf-zone.z4 { stroke: #dc3545; }
+.emf-ticks { fill: none; stroke: rgba(0, 0, 0, .35); stroke-width: 1.5; stroke-linecap: round; }
+.emf-scale { font-size: 9px; fill: rgba(0, 0, 0, .45); }
+.emf-needle, .emf-jitter { transform-box: view-box; transform-origin: 110px 112px; }
+.emf-needle { transform: rotate(calc((var(--mean, 0) / 100 - .5) * 180deg)); animation: emf-sweep 1.8s cubic-bezier(.2, 1.35, .4, 1) backwards; transition: transform 1.4s cubic-bezier(.3, 1.3, .4, 1); }
+.emf-needle path { stroke: #343a40; stroke-width: 3; stroke-linecap: round; }
+.emf-hub { fill: #343a40; }
+.emf-readout { text-align: center; margin-top: -.35rem; }
+.emf-value { display: block; font-size: 1.55rem; font-weight: 700; line-height: 1.05; font-variant-numeric: tabular-nums; }
+.emf-caption { font-size: .7rem; text-transform: uppercase; letter-spacing: .08em; color: var(--bs-secondary-color); }
+.emf-leds { display: flex; flex-wrap: wrap; justify-content: center; gap: .5rem; margin-top: .65rem; max-width: 250px; }
+.emf-led {
+    --c: 25, 135, 84; display: block; width: .9rem; height: .9rem; border-radius: 50%;
+    background: rgba(var(--c), calc(.35 + var(--risk, 0) / 160)); box-shadow: 0 0 0 1px rgba(var(--c), .65);
+    transition: transform .2s cubic-bezier(.3, 1.6, .5, 1);
+}
+.emf-led.risk-MEDIUM { --c: 224, 168, 0; } .emf-led.risk-HIGH { --c: 253, 126, 20; } .emf-led.risk-CRITICAL { --c: 220, 53, 69; } .emf-led.risk-NONE { --c: 108, 117, 125; }
+.emf-led:hover, .emf-led:focus-visible { transform: scale(1.45); outline: none; }
+.live-stamp { display: inline-flex; align-items: center; gap: .35rem; margin-top: .2rem; font-size: .68rem; color: var(--bs-secondary-color); }
+.live-stamp .live-dot { width: .45rem; height: .45rem; border-radius: 50%; background: #adb5bd; }
+.live-stamp.is-live .live-dot { background: #198754; animation: live-pulse 2s ease-in-out infinite; }
+.live-note { padding: .45rem .6rem; border-radius: .5rem; border: 1px solid rgba(255, 193, 7, .5); background: rgba(255, 193, 7, .12); }
+.haunt-meter > span { transition: width 1s ease-out; }
+.machine-card .metric-value { transition: color .6s, text-shadow .6s; }
+.machine-card.is-updated { animation: card-updated 1.4s ease-out; }
+@keyframes live-pulse { 0%, 100% { box-shadow: 0 0 0 0 rgba(25, 135, 84, .55); } 50% { box-shadow: 0 0 0 4px rgba(25, 135, 84, 0); } }
+@keyframes card-updated { from { outline: 2px solid rgba(13, 110, 253, .55); outline-offset: 2px; } to { outline: 2px solid rgba(13, 110, 253, 0); outline-offset: 6px; } }
+@keyframes emf-sweep { from { transform: rotate(-90deg); } }
+
+/* chart loading and failure messages */
+.chart-box:not(.is-loaded)::after {
+    content: "Loading readings…"; position: absolute; inset: 0; display: grid; place-items: center;
+    font-size: .8rem; color: var(--bs-secondary-color); pointer-events: none;
+}
+.is-error .chart-box:not(.is-loaded)::after { content: "Readings could not be loaded. Retrying every 15 s."; }
+
+/* citation previews ("summoning" the evidence a claim relies on) */
+.spirit-preview {
+    position: fixed; z-index: 1050; top: 0; left: 0; width: max-content; max-width: min(380px, calc(100vw - 24px));
+    padding: .7rem .85rem; border-radius: .7rem; font-size: .82rem; line-height: 1.45; pointer-events: none;
+    background: #fff; color: #212529; border: 1px solid rgba(0, 0, 0, .1); box-shadow: 0 12px 32px rgba(0, 0, 0, .18);
+    opacity: 0; transform: translateY(4px); transition: opacity .16s, transform .16s;
+}
+.spirit-preview.is-shown { opacity: 1; transform: none; }
+.spirit-preview .sp-head { display: flex; align-items: center; gap: .45rem; font-weight: 600; margin-bottom: .3rem; }
+.spirit-preview .sp-body { white-space: pre-wrap; max-height: 9.2em; overflow: hidden; color: #495057;
+    -webkit-mask-image: linear-gradient(#000 68%, transparent); mask-image: linear-gradient(#000 68%, transparent); }
+.spirit-preview .sp-foot { margin-top: .3rem; font-size: .72rem; color: #6c757d; }
+.spirit-thread { position: fixed; inset: 0; width: 100vw; height: 100vh; pointer-events: none; z-index: 1049; overflow: visible; }
+.spirit-thread path { fill: none; stroke: rgba(13, 110, 253, .55); stroke-width: 1.5; stroke-dasharray: 5 6; animation: thread-flow 1s linear infinite; }
+.evidence-item.is-summoned { outline: 2px solid rgba(13, 110, 253, .55); outline-offset: 2px; }
+@keyframes thread-flow { to { stroke-dashoffset: -22; } }
+
+/* evidence-class filter on the investigation page */
+.ev-badge[data-ev-filter] { cursor: help; }
+main.ev-filtering .evidence-item { transition: opacity .25s, filter .25s, box-shadow .25s; }
+main.ev-filtering .evidence-item:not(.ev-match) { opacity: .25; filter: saturate(.3); }
+main.ev-filtering .evidence-item.ev-match { box-shadow: 0 0 0 2px rgba(13, 110, 253, .35); }
+
+/* search words highlighted in manual passages */
+mark.ink { padding: 0 .12em; border-radius: .2em; background: rgba(255, 193, 7, .35); color: inherit; }
+
+/* example questions on the assistant page are buttons now */
+.example-chip { cursor: pointer; transition: transform .2s, box-shadow .2s, border-color .2s; }
+.example-chip:hover, .example-chip:focus-visible { border-color: #0d6efd !important; }
+
+/* recommendations being sealed or banished after a click */
+.rec { position: relative; }
+.rec-seal { display: none; }
+.rec.is-banishing { animation: banish .7s ease-in forwards; }
+@keyframes banish { to { opacity: 0; filter: blur(6px); transform: translateY(-14px) scale(.98); } }
+
+/* séance overlay while a slow request (investigation, report, inspection, upload) runs */
+.seance {
+    position: fixed; inset: 0; z-index: 1060; display: grid; place-items: center; padding: 1rem;
+    background: rgba(248, 249, 250, .82); backdrop-filter: blur(3px); opacity: 0; transition: opacity .3s;
+}
+.seance.is-shown { opacity: 1; }
+.seance-box { text-align: center; max-width: 460px; }
+.seance-title { font-size: 1.15rem; font-weight: 600; margin: .6rem 0 .25rem; }
+.seance-sub { font-size: .85rem; color: #6c757d; }
+.seance-steps { display: flex; flex-wrap: wrap; justify-content: center; gap: .35rem .5rem; margin-top: .8rem; font-size: .76rem; }
+.seance-steps span { padding: .15rem .55rem; border-radius: 999px; border: 1px solid rgba(0, 0, 0, .12); animation: step-glow 2.4s ease-in-out infinite; animation-delay: calc(var(--i, 0) * .35s); }
+.seance-circle { position: relative; width: 150px; height: 150px; margin: 0 auto; display: none; }
+.seance-spinner { width: 2.4rem; height: 2.4rem; }
+@keyframes step-glow { 0%, 100% { opacity: .55; } 50% { opacity: 1; } }
+
+/* the spirit board: command palette (plain in daylight, an Ouija board in costume) */
+.spirit-board { position: fixed; inset: 0; z-index: 1070; display: none; }
+.spirit-board.is-open { display: block; }
+.sb-backdrop { position: absolute; inset: 0; background: rgba(15, 18, 25, .45); opacity: 0; transition: opacity .22s; }
+.spirit-board.is-visible .sb-backdrop { opacity: 1; }
+.sb-panel {
+    position: relative; margin: 9vh auto 0; width: min(700px, calc(100vw - 1.5rem)); max-height: 80vh;
+    display: flex; flex-direction: column; overflow: hidden; border-radius: 1rem;
+    background: #fff; color: #212529; box-shadow: 0 30px 80px rgba(0, 0, 0, .35);
+    opacity: 0; transform: translateY(-12px) scale(.98); transition: opacity .2s, transform .28s cubic-bezier(.2, 1.25, .4, 1);
+}
+.spirit-board.is-visible .sb-panel { opacity: 1; transform: none; }
+.sb-board, .sb-planchette, .sb-goodbye { display: none; }
+.sb-input-wrap { display: flex; align-items: center; gap: .65rem; padding: .85rem 1rem; border-bottom: 1px solid rgba(0, 0, 0, .08); }
+.sb-input-wrap .hi { width: 1.25rem; height: 1.25rem; color: #6c757d; }
+.sb-input { flex: 1; min-width: 0; border: 0; outline: 0; background: transparent; color: inherit; font-size: 1.05rem; }
+.sb-input-wrap kbd { font-size: .7rem; }
+.sb-list { position: relative; list-style: none; margin: 0; padding: .4rem; overflow: auto; overscroll-behavior: contain; }
+.sb-group { font-size: .68rem; text-transform: uppercase; letter-spacing: .09em; color: #6c757d; padding: .55rem .75rem .25rem; }
+.sb-opt { display: flex; align-items: center; gap: .7rem; padding: .5rem .75rem; border-radius: .6rem; cursor: pointer; }
+.sb-opt[aria-selected="true"] { background: rgba(13, 110, 253, .1); }
+.sb-opt .sb-ico { width: 1.15rem; height: 1.15rem; color: #6c757d; flex-shrink: 0; }
+.sb-opt .sb-text { display: flex; flex-direction: column; min-width: 0; }
+.sb-opt .sb-label { font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.sb-opt .sb-meta { font-size: .8rem; color: #6c757d; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.sb-opt .sb-kind { margin-left: auto; flex-shrink: 0; font-size: .68rem; color: #6c757d; border: 1px solid rgba(0, 0, 0, .12); border-radius: 999px; padding: .05rem .5rem; }
+.sb-dot { width: .6rem; height: .6rem; border-radius: 50%; flex-shrink: 0; background: var(--dot, #adb5bd); }
+.sb-empty { padding: 1rem .75rem; color: #6c757d; }
+.sb-foot { display: flex; flex-wrap: wrap; justify-content: space-between; gap: .5rem 1rem; padding: .55rem 1rem; border-top: 1px solid rgba(0, 0, 0, .08); font-size: .74rem; color: #6c757d; }
+.sb-foot kbd { font-size: .66rem; }
+
+/* the Kiro ghost, bats, swarms and the costume curtain only exist in costume */
+.kiro-companion, .possession-vignette, .channeling, .kiro-listener, .kiro-avatar { display: none; }
+
+/* =====================================================================================================
+   2. The costume: palette and Bootstrap dark-mode overrides
+   ===================================================================================================== */
+[data-costume="haunted"] {
+    color-scheme: dark;
+    --h-bone: #ece5d8;
+    --h-mist: #a3abbb;
+    --h-dim: #7b8496;
+    --h-calm: 91, 227, 168;
+    --h-candle: 255, 184, 77;
+    --h-pumpkin: 255, 126, 36;
+    --h-blood: 255, 77, 94;
+    --h-spirit: 167, 139, 250;
+    --h-ghost: 143, 184, 255;
+    --h-display: "Cinzel", "Trajan Pro", "Iowan Old Style", "Palatino Linotype", Palatino, "Book Antiqua", Georgia, serif;
+    --h-cobweb: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><path d='M100 0L100 98M100 0L69.7 93.2M100 0L42.4 79.3M100 0L20.7 57.6M100 0L6.8 30.3M100 0L2 0M100 16Q97.8 13.6 95.1 15.2M95.1 15.2Q93.8 12.3 90.6 12.9M90.6 12.9Q90.3 9.7 87.1 9.4M87.1 9.4Q87.7 6.2 84.8 4.9M84.8 4.9Q86.4 2.2 84 0M100 32Q95.7 27.2 90.1 30.4M90.1 30.4Q87.5 24.5 81.2 25.9M81.2 25.9Q80.5 19.5 74.1 18.8M74.1 18.8Q75.5 12.5 69.6 9.9M69.6 9.9Q72.8 4.3 68 0M100 50Q93.3 42.5 84.5 47.6M84.5 47.6Q80.5 38.3 70.6 40.5M70.6 40.5Q69.6 30.4 59.5 29.4M59.5 29.4Q61.7 19.5 52.4 15.5M52.4 15.5Q57.5 6.7 50 0M100 70Q90.6 59.5 78.4 66.6M78.4 66.6Q72.7 53.6 58.9 56.6M58.9 56.6Q57.4 42.6 43.4 41.1M43.4 41.1Q46.4 27.3 33.4 21.6M33.4 21.6Q40.5 9.4 30 0M100 92Q87.6 78.1 71.6 87.5M71.6 87.5Q64.1 70.5 45.9 74.4M45.9 74.4Q44.1 55.9 25.6 54.1M25.6 54.1Q29.5 35.9 12.5 28.4M12.5 28.4Q21.9 12.4 8 0' fill='none' stroke='rgba(226,232,240,0.42)' stroke-width='0.7'/></svg>");
+    --h-ghost-mark: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 72'><path d='M8 30C8 15.6 18.7 6 32 6s24 9.6 24 24v32a4.8 4.8 0 0 1-9.6 0 4.8 4.8 0 0 0-9.6 0 4.8 4.8 0 0 1-9.6 0 4.8 4.8 0 0 0-9.6 0A4.8 4.8 0 0 1 8 62z' fill='white'/><ellipse cx='24' cy='31' rx='3.8' ry='5.2' fill='black'/><ellipse cx='40' cy='31' rx='3.8' ry='5.2' fill='black'/></svg>");
+    --h-noise: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='180' height='180'><filter id='n'><feTurbulence type='fractalNoise' baseFrequency='.85' numOctaves='3' stitchTiles='stitch'/><feColorMatrix values='0 0 0 0 1 0 0 0 0 1 0 0 0 0 1 0 0 0 .6 0'/></filter><rect width='180' height='180' filter='url(%23n)'/></svg>");
+
+    --bs-body-bg: #090a10;
+    --bs-body-bg-rgb: 9, 10, 16;
+    --bs-body-color: #e8e2d6;
+    --bs-body-color-rgb: 232, 226, 214;
+    --bs-emphasis-color: #fbf7ef;
+    --bs-emphasis-color-rgb: 251, 247, 239;
+    --bs-heading-color: #f4eee3;
+    --bs-secondary-color: rgba(205, 210, 222, .72);
+    --bs-secondary-color-rgb: 205, 210, 222;
+    --bs-secondary-bg: #161924;
+    --bs-tertiary-color: rgba(205, 210, 222, .52);
+    --bs-tertiary-bg: #12141d;
+    --bs-tertiary-bg-rgb: 18, 20, 29;
+    --bs-border-color: rgba(148, 163, 184, .16);
+    --bs-border-color-translucent: rgba(148, 163, 184, .14);
+    --bs-link-color: #c4b5fd;
+    --bs-link-color-rgb: 196, 181, 253;
+    --bs-link-hover-color: #ede9fe;
+    --bs-link-hover-color-rgb: 237, 233, 254;
+    --bs-code-color: #ffcf8f;
+    --bs-highlight-bg: rgba(255, 184, 77, .25);
+    --bs-highlight-color: #fff3dc;
+    --bs-primary: #8b5cf6; --bs-primary-rgb: 139, 92, 246;
+    --bs-secondary-rgb: 163, 171, 187;
+    --bs-success: #5be3a8; --bs-success-rgb: 91, 227, 168;
+    --bs-info: #8fb8ff; --bs-info-rgb: 143, 184, 255;
+    --bs-warning: #ffb84d; --bs-warning-rgb: 255, 184, 77;
+    --bs-danger: #ff4d5e; --bs-danger-rgb: 255, 77, 94;
+    --bs-light: #1e2230; --bs-light-rgb: 30, 34, 48;
+    --bs-dark-rgb: 7, 8, 13;
+    --bs-primary-text-emphasis: #d8ccff; --bs-primary-bg-subtle: rgba(139, 92, 246, .14); --bs-primary-border-subtle: rgba(139, 92, 246, .38);
+    --bs-success-text-emphasis: #93f2c8; --bs-success-bg-subtle: rgba(91, 227, 168, .1); --bs-success-border-subtle: rgba(91, 227, 168, .32);
+    --bs-info-text-emphasis: #bfd5ff; --bs-info-bg-subtle: rgba(143, 184, 255, .1); --bs-info-border-subtle: rgba(143, 184, 255, .32);
+    --bs-warning-text-emphasis: #ffd597; --bs-warning-bg-subtle: rgba(255, 184, 77, .12); --bs-warning-border-subtle: rgba(255, 184, 77, .36);
+    --bs-danger-text-emphasis: #ffa8b0; --bs-danger-bg-subtle: rgba(255, 77, 94, .12); --bs-danger-border-subtle: rgba(255, 77, 94, .4);
+    --bs-secondary-border-subtle: rgba(148, 163, 184, .3);
+    --bs-focus-ring-color: rgba(255, 184, 77, .3);
+    --bs-form-valid-color: #5be3a8; --bs-form-valid-border-color: #5be3a8;
+    --bs-form-invalid-color: #ff7a87; --bs-form-invalid-border-color: #ff7a87;
+    scrollbar-color: rgba(167, 139, 250, .38) rgba(10, 11, 16, .6);
+}
+[data-costume="haunted"] body { background: #090a10; min-height: 100vh; }
+[data-costume="haunted"] body::before {
+    content: ""; position: fixed; inset: 0; z-index: -2; pointer-events: none;
+    background:
+        radial-gradient(1100px 620px at 88% -10%, rgba(167, 139, 250, .17), transparent 62%),
+        radial-gradient(800px 520px at -8% 8%, rgba(94, 234, 212, .065), transparent 60%),
+        radial-gradient(1200px 700px at 50% 115%, rgba(255, 126, 36, .09), transparent 62%),
+        linear-gradient(180deg, #06070c 0%, #0a0b12 45%, #0c0a12 100%);
+}
+[data-costume="haunted"] body::after {
+    content: ""; position: fixed; inset: -60px; z-index: 1040; pointer-events: none;
+    background-image: var(--h-noise); opacity: .045; animation: grain 7s steps(8) infinite;
+}
+[data-costume="haunted"] ::selection { background: rgba(255, 126, 36, .45); color: #fff; }
+[data-costume="haunted"] main { animation: rise-in .55s cubic-bezier(.2, .9, .3, 1) backwards; }
+@keyframes rise-in { from { opacity: 0; transform: translateY(10px); } }
+@keyframes grain {
+    0% { transform: translate(0, 0); } 25% { transform: translate(-22px, 14px); } 50% { transform: translate(18px, -26px); }
+    75% { transform: translate(-12px, -10px); } 100% { transform: translate(0, 0); }
+}
+
+/* drifting fog behind the content, nudged by the mouse */
+.haunt-atmos { display: none; }
+[data-costume="haunted"] .haunt-atmos { display: block; position: fixed; inset: 0; z-index: -1; pointer-events: none; overflow: hidden; }
+.haunt-atmos .fog {
+    position: absolute; left: -25%; width: 150%; height: 52vh; bottom: -12vh;
+    background:
+        radial-gradient(28% 42% at 12% 62%, rgba(186, 196, 226, .11), transparent 72%),
+        radial-gradient(24% 38% at 38% 74%, rgba(186, 196, 226, .085), transparent 72%),
+        radial-gradient(30% 44% at 63% 66%, rgba(186, 196, 226, .1), transparent 72%),
+        radial-gradient(26% 40% at 88% 72%, rgba(186, 196, 226, .085), transparent 72%);
+    translate: calc(var(--fx, 0) * -26px) 0;
+    animation: fog-drift 70s linear infinite alternate;
+}
+.haunt-atmos .fog-2 { bottom: -20vh; height: 44vh; opacity: .75; animation-duration: 95s; animation-direction: alternate-reverse; translate: calc(var(--fx, 0) * 42px) 0; }
+.haunt-atmos .wisp {
+    position: absolute; top: 34vh; left: -30vw; width: 46vw; height: 16vh; border-radius: 50%;
+    background: radial-gradient(closest-side, rgba(196, 181, 253, .06), transparent); animation: wisp 48s linear infinite;
+}
+.haunt-atmos .wisp.w2 { top: 62vh; animation-duration: 64s; animation-delay: -30s; }
+@keyframes fog-drift { from { transform: translate3d(-6%, 0, 0); } to { transform: translate3d(6%, 0, 0); } }
+@keyframes wisp { from { transform: translateX(0); } to { transform: translateX(160vw); } }
+
+/* ---------- navigation ---------- */
+[data-costume="haunted"] .navbar.bg-dark {
+    background: linear-gradient(180deg, rgba(6, 7, 11, .97), rgba(10, 11, 18, .88)) !important;
+    border-bottom: 1px solid rgba(167, 139, 250, .16);
+    box-shadow: 0 1px 0 rgba(255, 126, 36, .1), 0 18px 40px -26px rgba(0, 0, 0, .95);
+}
+[data-costume="haunted"] .navbar-brand {
+    display: inline-flex; align-items: center; gap: .55rem;
+    font-family: var(--h-display); letter-spacing: .03em; text-shadow: 0 0 18px rgba(196, 181, 253, .55);
+}
+.brand-ghost { width: 25px; height: 28px; filter: drop-shadow(0 0 8px rgba(196, 181, 253, .8)); animation: bob 4.5s ease-in-out infinite; }
+[data-costume="haunted"] .navbar .nav-link { display: inline-flex; align-items: center; gap: .4rem; position: relative; color: rgba(232, 226, 214, .7); transition: color .2s, text-shadow .2s; }
+[data-costume="haunted"] .navbar .nav-link .nav-ico { opacity: .7; transition: transform .35s cubic-bezier(.3, 1.6, .5, 1), opacity .3s, color .3s; }
+[data-costume="haunted"] .navbar .nav-link:hover, [data-costume="haunted"] .navbar .nav-link:focus-visible { color: #fff; text-shadow: 0 0 14px rgba(196, 181, 253, .8); }
+[data-costume="haunted"] .navbar .nav-link:hover .nav-ico { transform: translateY(-2px) rotate(-8deg) scale(1.1); opacity: 1; color: #c4b5fd; }
+[data-costume="haunted"] .navbar .nav-link.active { color: #fff; }
+[data-costume="haunted"] .navbar .nav-link.active .nav-ico { color: #ffb84d; opacity: 1; filter: drop-shadow(0 0 6px rgba(255, 140, 40, .85)); }
+[data-costume="haunted"] .navbar .nav-link.active::after {
+    content: ""; position: absolute; left: .5rem; right: .5rem; bottom: -.1rem; height: 2px; border-radius: 2px;
+    background: linear-gradient(90deg, transparent, #ffb84d 30%, #ff7e24 70%, transparent); box-shadow: 0 0 12px rgba(255, 126, 36, .9);
+}
+[data-costume="haunted"] .haunt-summon {
+    --bs-btn-color: #ece7ff; --bs-btn-border-color: rgba(196, 181, 253, .38); --bs-btn-hover-bg: rgba(139, 92, 246, .22);
+    --bs-btn-hover-border-color: rgba(196, 181, 253, .75); --bs-btn-hover-color: #fff; --bs-btn-active-bg: rgba(139, 92, 246, .35);
+    border-radius: 999px; padding: .22rem .4rem .22rem .7rem;
+}
+[data-costume="haunted"] .haunt-summon:hover { box-shadow: 0 0 18px -4px rgba(167, 139, 250, .9); }
+[data-costume="haunted"] .haunt-ambience { --bs-btn-color: rgba(232, 226, 214, .75); --bs-btn-border-color: rgba(196, 181, 253, .28); --bs-btn-hover-color: #fff; --bs-btn-hover-border-color: rgba(196, 181, 253, .7); --bs-btn-hover-bg: rgba(139, 92, 246, .2); border: 1px solid rgba(196, 181, 253, .28); }
+[data-costume="haunted"] .haunt-ambience[aria-pressed="true"] { color: #ffd597; border-color: rgba(255, 184, 77, .55); box-shadow: 0 0 14px -3px rgba(255, 184, 77, .8); }
+[data-costume="haunted"] .haunt-costume { border-color: rgba(255, 184, 77, .45); color: #ffe2b8; }
+[data-costume="haunted"] .haunt-costume:hover { box-shadow: 0 0 18px -4px rgba(255, 126, 36, .9); }
+[data-costume="haunted"] .haunt-costume .hi { color: #ffb84d; filter: drop-shadow(0 0 5px rgba(255, 126, 36, .9)); }
+
+/* ---------- type ---------- */
+[data-costume="haunted"] main h1, [data-costume="haunted"] main .h3 {
+    font-family: var(--h-display); font-weight: 600; letter-spacing: .015em;
+    text-shadow: 0 0 24px rgba(167, 139, 250, .35), 0 1px 2px rgba(0, 0, 0, .8);
+}
+[data-costume="haunted"] .card h2, [data-costume="haunted"] .card .h5, [data-costume="haunted"] .card .h6 { font-family: var(--h-display); font-weight: 600; letter-spacing: .02em; }
+[data-costume="haunted"] .spirit-subtitle, .spirit-subtitle {
+    display: inline-block; margin-left: .6rem; font-size: .9rem; font-style: italic; letter-spacing: .06em;
+    color: #c4b5fd; text-shadow: 0 0 12px rgba(167, 139, 250, .7); vertical-align: middle;
+}
+[data-costume="haunted"] a { text-underline-offset: .18em; text-decoration-color: rgba(196, 181, 253, .45); transition: color .2s, text-decoration-color .2s, text-shadow .2s; }
+[data-costume="haunted"] a:hover { text-decoration-color: currentColor; text-shadow: 0 0 12px rgba(196, 181, 253, .55); }
+[data-costume="haunted"] code { color: var(--bs-code-color); }
+[data-costume="haunted"] kbd { background: #1d2130; color: #e8e2d6; box-shadow: inset 0 -1px 0 rgba(255, 255, 255, .08); }
+[data-costume="haunted"] .text-success { text-shadow: 0 0 14px rgba(var(--h-calm), .35); }
+[data-costume="haunted"] .text-danger { text-shadow: 0 0 14px rgba(var(--h-blood), .4); }
+[data-costume="haunted"] :focus-visible { outline-color: #ffb84d; }
+
+/* ---------- cards: crypt stone lit by a lantern that follows the mouse ---------- */
+[data-costume="haunted"] .card {
+    --bs-card-bg: transparent; --bs-card-border-color: transparent; --bs-card-color: var(--bs-body-color); --bs-card-cap-bg: transparent;
+    position: relative; isolation: isolate; border-radius: 14px;
+    background: linear-gradient(180deg, rgba(27, 31, 45, .82), rgba(14, 16, 25, .86));
+    border: 1px solid rgba(148, 163, 184, .11);
+    box-shadow: inset 0 1px 0 rgba(255, 255, 255, .035), 0 24px 48px -30px rgba(0, 0, 0, .95), 0 2px 6px -2px rgba(0, 0, 0, .6);
+    transition: border-color .3s, box-shadow .3s;
+}
+[data-costume="haunted"] .card::before {
+    content: ""; position: absolute; inset: 0; border-radius: inherit; z-index: -1; pointer-events: none;
+    background: radial-gradient(520px circle at var(--lx, 50%) var(--ly, 0%), rgba(255, 184, 77, .075), transparent 42%);
+    opacity: 0; transition: opacity .45s;
+}
+[data-costume="haunted"] .card::after {
+    content: ""; position: absolute; inset: -1px; border-radius: inherit; pointer-events: none; padding: 1px;
+    background: radial-gradient(280px circle at var(--lx, 50%) var(--ly, 0%), rgba(196, 181, 253, .6), transparent 55%);
+    -webkit-mask: linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0);
+    -webkit-mask-composite: xor; mask-composite: exclude;
+    opacity: 0; transition: opacity .45s;
+}
+[data-costume="haunted"] .card:hover::before, [data-costume="haunted"] .card:hover::after { opacity: 1; }
+[data-costume="haunted"] .card:hover { border-color: rgba(167, 139, 250, .2); }
+
+/* KPI tiles */
+.kpi-card .card-body { position: relative; }
+.kpi-ico { position: absolute; top: .85rem; right: .85rem; width: 1.7rem; height: 1.7rem; color: var(--h-mist); opacity: .38; transition: transform .45s cubic-bezier(.3, 1.6, .5, 1), opacity .3s, color .3s; }
+[data-costume="haunted"] .kpi-label { color: var(--h-mist); letter-spacing: .08em; padding-right: 2rem; }
+[data-costume="haunted"] .kpi { font-variant-numeric: tabular-nums; text-shadow: 0 0 18px rgba(232, 226, 214, .2); }
+[data-costume="haunted"] .kpi.text-success { text-shadow: 0 0 22px rgba(var(--h-calm), .5); }
+[data-costume="haunted"] .kpi.text-warning { text-shadow: 0 0 22px rgba(var(--h-candle), .55); }
+[data-costume="haunted"] .kpi.text-danger { text-shadow: 0 0 24px rgba(var(--h-blood), .65); }
+[data-costume="haunted"] .kpi-card:hover .kpi-ico { opacity: .85; transform: translateY(-3px) rotate(-8deg) scale(1.1); color: #c4b5fd; }
+[data-costume="haunted"] .kpi-calm .kpi-ico { color: rgb(var(--h-calm)); }
+[data-costume="haunted"] .kpi-alarm .kpi-ico { color: rgb(var(--h-candle)); opacity: .8; filter: drop-shadow(0 0 8px rgba(var(--h-candle), .7)); animation: bob 3.6s ease-in-out infinite; }
+[data-costume="haunted"] .kpi-critical .kpi-ico { color: rgb(var(--h-blood)); opacity: .9; filter: drop-shadow(0 0 9px rgba(var(--h-blood), .85)); animation: candle 1.6s ease-in-out infinite; }
+[data-costume="haunted"] .kpi-alarm { border-color: rgba(var(--h-candle), .25); }
+[data-costume="haunted"] .kpi-critical { border-color: rgba(var(--h-blood), .35); box-shadow: 0 0 34px -14px rgba(var(--h-blood), .8), 0 24px 48px -30px rgba(0, 0, 0, .95); }
+
+/* the narrator under the plant name */
+.night-watch { display: flex; align-items: center; gap: .45rem; margin-top: .4rem; font-size: .86rem; color: #e9dcc2; font-style: italic; }
+.night-watch .hi { color: rgb(var(--h-candle)); filter: drop-shadow(0 0 6px rgba(255, 140, 40, .9)); animation: candle 2.8s ease-in-out infinite; }
+.night-watch.is-uneasy { color: #ffd597; }
+.night-watch.is-alarm { color: #ffa8b0; }
+.night-watch.is-alarm .hi { color: rgb(var(--h-blood)); }
+
+/* ---------- badges glow in their meaning's colour ---------- */
+[data-costume="haunted"] .badge { border-radius: 999px; letter-spacing: .04em; padding: .34em .64em; font-family: var(--bs-body-font-family); }
+[data-costume="haunted"] main h1 .badge { font-size: .5em; vertical-align: .3em; }
+[data-costume="haunted"] .card h2 .badge { font-size: .62em; vertical-align: .2em; }
+[data-costume="haunted"] .text-bg-success { color: #86f3c6 !important; background-color: rgba(var(--h-calm), .13) !important; box-shadow: inset 0 0 0 1px rgba(var(--h-calm), .4), 0 0 14px -4px rgba(var(--h-calm), .6); }
+[data-costume="haunted"] .text-bg-warning { color: #ffd597 !important; background-color: rgba(var(--h-candle), .14) !important; box-shadow: inset 0 0 0 1px rgba(var(--h-candle), .42), 0 0 14px -4px rgba(var(--h-candle), .6); }
+[data-costume="haunted"] .text-bg-danger { color: #ffb0b8 !important; background-color: rgba(var(--h-blood), .17) !important; box-shadow: inset 0 0 0 1px rgba(var(--h-blood), .5), 0 0 16px -3px rgba(var(--h-blood), .7); }
+[data-costume="haunted"] .text-bg-info { color: #c3d8ff !important; background-color: rgba(var(--h-ghost), .13) !important; box-shadow: inset 0 0 0 1px rgba(var(--h-ghost), .38), 0 0 12px -4px rgba(var(--h-ghost), .5); }
+[data-costume="haunted"] .text-bg-primary { color: #dcd2ff !important; background-color: rgba(var(--h-spirit), .18) !important; box-shadow: inset 0 0 0 1px rgba(var(--h-spirit), .45); }
+[data-costume="haunted"] .text-bg-secondary { color: #ccd2de !important; background-color: rgba(148, 163, 184, .13) !important; box-shadow: inset 0 0 0 1px rgba(148, 163, 184, .3); }
+[data-costume="haunted"] .text-bg-dark { color: #f0e9dc !important; background-color: rgba(0, 0, 0, .55) !important; box-shadow: inset 0 0 0 1px rgba(232, 226, 214, .25); }
+[data-costume="haunted"] .text-bg-light { color: #d9dde7 !important; background-color: rgba(255, 255, 255, .05) !important; border-color: rgba(148, 163, 184, .25) !important; }
+[data-costume="haunted"] .badge.st-CRITICAL, [data-costume="haunted"] .badge.st-OFFLINE { animation: badge-throb 2.4s ease-in-out infinite; }
+[data-costume="haunted"] .badge.st-AI_INTERPRETATION { border: 1px dashed rgba(196, 181, 253, .6); box-shadow: 0 0 14px -4px rgba(167, 139, 250, .7); color: #e2d9ff !important; background: rgba(167, 139, 250, .1) !important; }
+@keyframes badge-throb { 0%, 100% { box-shadow: inset 0 0 0 1px rgba(var(--h-blood), .5), 0 0 10px -4px rgba(var(--h-blood), .6); } 50% { box-shadow: inset 0 0 0 1px rgba(var(--h-blood), .8), 0 0 18px -2px rgba(var(--h-blood), .95); } }
+
+/* ---------- buttons ---------- */
+[data-costume="haunted"] .btn { --bs-btn-border-radius: .65rem; --bs-btn-border-radius-sm: .55rem; transition: transform .15s, box-shadow .25s, background-color .25s, border-color .25s, color .2s; }
+[data-costume="haunted"] .btn:active { transform: translateY(1px) scale(.99); }
+[data-costume="haunted"] .btn-primary {
+    --bs-btn-color: #fff; --bs-btn-bg: #7c3aed; --bs-btn-border-color: #8b5cf6;
+    --bs-btn-hover-color: #fff; --bs-btn-hover-bg: #8b5cf6; --bs-btn-hover-border-color: #a78bfa;
+    --bs-btn-active-color: #fff; --bs-btn-active-bg: #6d28d9; --bs-btn-active-border-color: #8b5cf6;
+    --bs-btn-disabled-bg: #4c2a8f; --bs-btn-disabled-border-color: #5b36a3; --bs-btn-focus-shadow-rgb: 167, 139, 250;
+    background-image: linear-gradient(180deg, rgba(255, 255, 255, .14), rgba(255, 255, 255, 0));
+    box-shadow: 0 0 0 1px rgba(167, 139, 250, .25), 0 10px 26px -12px rgba(139, 92, 246, .95);
+}
+[data-costume="haunted"] .btn-primary:hover { transform: translateY(-1px); box-shadow: 0 0 0 1px rgba(196, 181, 253, .5), 0 0 26px -2px rgba(139, 92, 246, .8); }
+[data-costume="haunted"] .btn-outline-primary {
+    --bs-btn-color: #cdbffe; --bs-btn-border-color: rgba(167, 139, 250, .5); --bs-btn-hover-color: #fff; --bs-btn-hover-bg: rgba(139, 92, 246, .22);
+    --bs-btn-hover-border-color: #a78bfa; --bs-btn-active-color: #fff; --bs-btn-active-bg: rgba(139, 92, 246, .35); --bs-btn-active-border-color: #a78bfa;
+}
+[data-costume="haunted"] .btn-outline-primary:hover { box-shadow: 0 0 18px -6px rgba(167, 139, 250, .9); }
+[data-costume="haunted"] .btn-success {
+    --bs-btn-color: #03140d; --bs-btn-bg: #3ddc97; --bs-btn-border-color: #5be3a8; --bs-btn-hover-color: #03140d; --bs-btn-hover-bg: #5be3a8;
+    --bs-btn-hover-border-color: #8ff0c4; --bs-btn-active-color: #03140d; --bs-btn-active-bg: #2fc283; font-weight: 600;
+    box-shadow: 0 8px 22px -12px rgba(var(--h-calm), .95);
+}
+[data-costume="haunted"] .btn-success:hover { box-shadow: 0 0 22px -4px rgba(var(--h-calm), .85); }
+[data-costume="haunted"] .btn-outline-success { --bs-btn-color: #86f3c6; --bs-btn-border-color: rgba(var(--h-calm), .5); --bs-btn-hover-bg: rgba(var(--h-calm), .18); --bs-btn-hover-color: #d9fff0; --bs-btn-hover-border-color: #5be3a8; --bs-btn-active-bg: rgba(var(--h-calm), .3); --bs-btn-active-color: #fff; }
+[data-costume="haunted"] .btn-outline-danger { --bs-btn-color: #ff9aa4; --bs-btn-border-color: rgba(var(--h-blood), .55); --bs-btn-hover-bg: rgba(var(--h-blood), .2); --bs-btn-hover-color: #ffe0e3; --bs-btn-hover-border-color: #ff4d5e; --bs-btn-active-bg: rgba(var(--h-blood), .32); --bs-btn-active-color: #fff; }
+[data-costume="haunted"] .btn-outline-danger:hover { box-shadow: 0 0 18px -6px rgba(var(--h-blood), .9); }
+[data-costume="haunted"] .btn-warning {
+    --bs-btn-color: #1b0d03; --bs-btn-bg: #ff8a2f; --bs-btn-border-color: #ffa04f; --bs-btn-hover-color: #1b0d03; --bs-btn-hover-bg: #ffa04f;
+    --bs-btn-hover-border-color: #ffc078; --bs-btn-active-bg: #f07418; --bs-btn-active-color: #1b0d03; font-weight: 600;
+    box-shadow: 0 8px 22px -12px rgba(var(--h-pumpkin), .95);
+}
+[data-costume="haunted"] .btn-outline-secondary { --bs-btn-color: #c8cedb; --bs-btn-border-color: rgba(148, 163, 184, .35); --bs-btn-hover-bg: rgba(148, 163, 184, .14); --bs-btn-hover-color: #fff; --bs-btn-hover-border-color: rgba(148, 163, 184, .6); --bs-btn-active-bg: rgba(139, 92, 246, .3); --bs-btn-active-color: #fff; --bs-btn-active-border-color: rgba(196, 181, 253, .7); }
+[data-costume="haunted"] .btn-outline-secondary.active { box-shadow: 0 0 14px -4px rgba(167, 139, 250, .8); }
+[data-costume="haunted"] .btn-outline-dark, [data-costume="haunted"] .btn-outline-light { --bs-btn-color: #e8e2d6; --bs-btn-border-color: rgba(232, 226, 214, .35); --bs-btn-hover-bg: rgba(232, 226, 214, .12); --bs-btn-hover-color: #fff; --bs-btn-hover-border-color: rgba(232, 226, 214, .6); --bs-btn-active-bg: rgba(232, 226, 214, .2); --bs-btn-active-color: #fff; }
+[data-costume="haunted"] .btn-link { --bs-btn-color: #c4b5fd; --bs-btn-hover-color: #ede9fe; }
+[data-costume="haunted"] .btn-close { filter: invert(1) grayscale(100%) brightness(200%); }
+
+/* ---------- forms ---------- */
+[data-costume="haunted"] .form-control, [data-costume="haunted"] .form-select {
+    background-color: rgba(4, 5, 9, .55); border-color: rgba(148, 163, 184, .22); color: var(--bs-body-color);
+    transition: border-color .2s, box-shadow .25s, background-color .2s;
+}
+[data-costume="haunted"] .form-control::placeholder { color: rgba(163, 171, 187, .6); }
+[data-costume="haunted"] .form-control:focus, [data-costume="haunted"] .form-select:focus {
+    background-color: rgba(4, 5, 9, .75); border-color: rgba(var(--h-candle), .65); color: #fff;
+    box-shadow: 0 0 0 .2rem rgba(var(--h-candle), .14), 0 0 22px -6px rgba(var(--h-candle), .65);
+}
+[data-costume="haunted"] .form-control::file-selector-button { background: rgba(139, 92, 246, .18); color: #e8e2d6; border-color: rgba(148, 163, 184, .22); }
+[data-costume="haunted"] .form-check-input { background-color: rgba(4, 5, 9, .6); border-color: rgba(148, 163, 184, .4); }
+[data-costume="haunted"] .form-check-input:checked { background-color: #8b5cf6; border-color: #a78bfa; }
+[data-costume="haunted"] .form-label, [data-costume="haunted"] .form-text { color: var(--h-mist); }
+[data-costume="haunted"] .bg-light { background-color: rgba(255, 255, 255, .025) !important; }
+[data-costume="haunted"] .border { border-color: rgba(148, 163, 184, .14) !important; }
+
+/* ---------- tables ---------- */
+[data-costume="haunted"] .table {
+    --bs-table-bg: transparent; --bs-table-color: var(--bs-body-color); --bs-table-border-color: rgba(148, 163, 184, .1);
+    --bs-table-striped-bg: rgba(255, 255, 255, .02); --bs-table-hover-bg: rgba(167, 139, 250, .07);
+    --bs-table-active-bg: rgba(167, 139, 250, .13); --bs-table-active-color: #fff;
+}
+[data-costume="haunted"] .table > thead th {
+    font-size: .7rem; font-weight: 600; text-transform: uppercase; letter-spacing: .08em; color: var(--h-mist);
+    border-bottom-color: rgba(167, 139, 250, .24);
+}
+[data-costume="haunted"] .table > tbody > tr > * { transition: background-color .2s; }
+[data-costume="haunted"] .table > tbody > tr:hover > * { --bs-table-bg-state: rgba(167, 139, 250, .065); }
+[data-costume="haunted"] .table-active > :first-child { box-shadow: inset 2px 0 0 rgba(255, 184, 77, .85), inset 0 0 0 9999px var(--bs-table-bg-state, var(--bs-table-bg-type, var(--bs-table-accent-bg))); }
+
+/* ---------- alerts, details, scroll areas ---------- */
+[data-costume="haunted"] .alert { border-width: 1px 1px 1px 3px; backdrop-filter: blur(2px); }
+[data-costume="haunted"] .alert-success { box-shadow: 0 0 26px -14px rgba(var(--h-calm), .9); }
+[data-costume="haunted"] .alert-danger { box-shadow: 0 0 26px -12px rgba(var(--h-blood), .9); }
+[data-costume="haunted"] .alert-warning { box-shadow: 0 0 26px -14px rgba(var(--h-candle), .9); }
+[data-costume="haunted"] details > summary { cursor: pointer; transition: color .2s; }
+[data-costume="haunted"] details > summary:hover { color: #e9dcc2 !important; }
+[data-costume="haunted"] .table-scroll { scrollbar-width: thin; }
+[data-costume="haunted"] .bar { background: linear-gradient(90deg, #7c3aed, #c084fc); box-shadow: 0 0 10px rgba(167, 139, 250, .6); }
+[data-costume="haunted"] .bar.neg { background: linear-gradient(90deg, #2fc283, #5be3a8); box-shadow: 0 0 10px rgba(var(--h-calm), .55); }
+[data-costume="haunted"] .bar-track { background: rgba(255, 255, 255, .05); }
+[data-costume="haunted"] .contribution-bar { background: linear-gradient(90deg, #ff7e24, #ff4d5e); box-shadow: 0 0 10px rgba(var(--h-blood), .6); }
+[data-costume="haunted"] .trace-step { border-left-color: rgba(var(--h-ghost), .7); }
+[data-costume="haunted"] .trace-step.status-SUCCESS { border-left-color: rgb(var(--h-calm)); box-shadow: -6px 0 12px -8px rgba(var(--h-calm), .9); }
+[data-costume="haunted"] .trace-step.status-ERROR, [data-costume="haunted"] .trace-step.status-DENIED { border-left-color: rgb(var(--h-blood)); box-shadow: -6px 0 12px -8px rgba(var(--h-blood), .9); }
+
+/* =====================================================================================================
+   3. Overview: machine cards carry their failure risk as an aura
+   ===================================================================================================== */
+.machine-card .aura, .machine-card .peek { display: none; }
+[data-costume="haunted"] .machine-link { display: block; perspective: 900px; border-radius: 14px; }
+[data-costume="haunted"] .machine-link:focus-visible { outline: 2px solid #ffb84d; outline-offset: 3px; }
+[data-costume="haunted"] .machine-card {
+    --aura: var(--h-calm);
+    border-left: 1px solid rgba(148, 163, 184, .11);
+    transform: rotateX(var(--rx, 0deg)) rotateY(var(--ry, 0deg)) translateZ(0);
+    transition: transform .3s ease-out, border-color .3s, box-shadow .3s;
+}
+[data-costume="haunted"] .machine-card.is-tilting { transition: transform .08s linear, border-color .3s; }
+[data-costume="haunted"] .machine-card.risk-MEDIUM { --aura: var(--h-candle); }
+[data-costume="haunted"] .machine-card.risk-HIGH { --aura: var(--h-pumpkin); }
+[data-costume="haunted"] .machine-card.risk-CRITICAL { --aura: var(--h-blood); }
+[data-costume="haunted"] .machine-card.risk-NONE { --aura: 148, 163, 184; }
+[data-costume="haunted"] .machine-card .aura {
+    display: block; position: absolute; inset: 0; border-radius: inherit; z-index: -1; pointer-events: none;
+    transition: box-shadow 1.2s ease-out;
+    box-shadow:
+        inset 3px 0 0 rgba(var(--aura), .95),
+        0 0 0 1px rgba(var(--aura), calc(.1 + var(--risk, 0) * .003)),
+        0 0 calc(6px + var(--risk, 0) * .55px) calc(var(--risk, 0) * .07px) rgba(var(--aura), calc(.05 + var(--risk, 0) * .005));
+}
+[data-costume="haunted"] .machine-card .metric-value { color: rgb(var(--aura)); text-shadow: 0 0 calc(4px + var(--risk, 0) * .2px) rgba(var(--aura), .7); }
+[data-costume="haunted"] .machine-card.is-restless .aura { animation: aura-flicker 5.5s infinite; }
+[data-costume="haunted"] .machine-card.is-possessed { animation: tremble 5s infinite; }
+[data-costume="haunted"] .machine-card .peek { display: block; position: absolute; top: -27px; right: 26px; width: 36px; height: 27px; overflow: hidden; pointer-events: none; }
+[data-costume="haunted"] .machine-card .peek-ghost {
+    position: absolute; left: 2px; top: 28px; width: 32px; height: 36px;
+    filter: drop-shadow(0 0 6px rgba(var(--aura), .9)); transform: translateY(0); transition: transform .5s cubic-bezier(.3, 1.5, .5, 1);
+}
+[data-costume="haunted"] .machine-card.is-restless .peek-ghost { animation: peek 7s ease-in-out infinite; }
+[data-costume="haunted"] .machine-link:hover .machine-card.is-restless .peek-ghost { animation: none; transform: translateY(-25px); }
+[data-costume="haunted"] .machine-card .haunt-meter { background: rgba(255, 255, 255, .07); }
+[data-costume="haunted"] .machine-card .haunt-meter > span {
+    background-image: linear-gradient(90deg, #5be3a8, #ffb84d 40%, #ff7e24 62%, #ff4d5e);
+    box-shadow: 0 0 10px rgba(var(--aura), .85);
+}
+[data-costume="haunted"] .machine-card.conn-STALE, [data-costume="haunted"] .machine-card.conn-OFFLINE {
+    background-image: var(--h-cobweb), linear-gradient(180deg, rgba(27, 31, 45, .82), rgba(14, 16, 25, .86));
+    background-repeat: no-repeat; background-position: top right, 0 0; background-size: 86px 86px, auto;
+}
+[data-costume="haunted"] .machine-card.conn-OFFLINE { background-size: 128px 128px, auto; }
+[data-costume="haunted"] .machine-card.conn-STALE .fadeable { opacity: .72; filter: saturate(.4); }
+[data-costume="haunted"] .machine-card.conn-OFFLINE .fadeable { opacity: .6; filter: grayscale(1); }
+.gone-quiet { display: flex; align-items: center; gap: .4rem; margin-top: .55rem; font-size: .78rem; font-style: italic; color: #cfd4e0; }
+.gone-quiet .hi { color: #c4b5fd; }
+.apparition-ico { color: #c3d8ff; filter: drop-shadow(0 0 5px rgba(var(--h-ghost), .9)); animation: haunt-fade 3.4s ease-in-out infinite; }
+[data-costume="haunted"] .alert-list li { padding: .2rem .35rem; border-radius: .5rem; transition: background-color .2s; }
+[data-costume="haunted"] .alert-list li:hover { background: rgba(143, 184, 255, .07); }
+[data-costume="haunted"] .alert-list li.sev-CRITICAL .apparition-ico { color: #ffb0b8; filter: drop-shadow(0 0 6px rgba(var(--h-blood), .95)); }
+
+@keyframes aura-flicker { 0%, 40%, 100% { opacity: 1; } 43% { opacity: .45; } 46% { opacity: 1; } 72% { opacity: .82; } 75% { opacity: 1; } }
+@keyframes tremble { 0%, 58%, 66%, 100% { translate: 0 0; } 60% { translate: -1px 0; } 62% { translate: 1px 0; } 64% { translate: -1px 0; } }
+@keyframes peek { 0%, 14% { transform: translateY(0); } 24%, 64% { transform: translateY(-21px); } 74%, 100% { transform: translateY(0); } }
+@keyframes haunt-fade { 0%, 100% { opacity: .55; } 50% { opacity: 1; } }
+
+/* EMF meter in costume */
+[data-costume="haunted"] .emf-zone.z1 { stroke: #5be3a8; filter: drop-shadow(0 0 4px rgba(var(--h-calm), .7)); }
+[data-costume="haunted"] .emf-zone.z2 { stroke: #ffb84d; filter: drop-shadow(0 0 4px rgba(var(--h-candle), .7)); }
+[data-costume="haunted"] .emf-zone.z3 { stroke: #ff7e24; filter: drop-shadow(0 0 4px rgba(var(--h-pumpkin), .7)); }
+[data-costume="haunted"] .emf-zone.z4 { stroke: #ff4d5e; filter: drop-shadow(0 0 5px rgba(var(--h-blood), .8)); }
+[data-costume="haunted"] .emf-ticks { stroke: rgba(232, 226, 214, .32); }
+[data-costume="haunted"] .emf-scale { fill: rgba(232, 226, 214, .45); }
+[data-costume="haunted"] .emf-needle path { stroke: #ffe8c4; filter: drop-shadow(0 0 5px rgba(255, 184, 77, .95)); }
+[data-costume="haunted"] .emf-hub { fill: #ffb84d; filter: drop-shadow(0 0 6px rgba(255, 140, 40, .9)); }
+[data-costume="haunted"] .emf-jitter { --jit: calc(.35deg + var(--mean, 0) * .05deg); animation: emf-jitter 1.9s steps(6) infinite; }
+[data-costume="haunted"] .emf-value { text-shadow: 0 0 22px rgba(var(--h-candle), .55); }
+[data-costume="haunted"] .emf-led { --c: var(--h-calm); box-shadow: 0 0 0 1px rgba(var(--c), .7), 0 0 calc(4px + var(--risk, 0) * .14px) rgba(var(--c), .85); }
+[data-costume="haunted"] .emf-led.risk-MEDIUM { --c: var(--h-candle); }
+[data-costume="haunted"] .emf-led.risk-HIGH { --c: var(--h-pumpkin); animation: led-throb 1.8s ease-in-out infinite; }
+[data-costume="haunted"] .emf-led.risk-CRITICAL { --c: var(--h-blood); animation: led-throb 1.1s ease-in-out infinite; }
+[data-costume="haunted"] .emf-led.risk-NONE { --c: 148, 163, 184; }
+@keyframes emf-jitter {
+    0% { rotate: 0deg; } 18% { rotate: var(--jit); } 34% { rotate: calc(var(--jit) * -.7); } 52% { rotate: calc(var(--jit) * .45); }
+    70% { rotate: calc(var(--jit) * -1); } 86% { rotate: calc(var(--jit) * .8); } 100% { rotate: 0deg; }
+}
+@keyframes led-throb { 0%, 100% { filter: brightness(1); } 50% { filter: brightness(1.5); } }
+[data-costume="haunted"] .machine-card.is-updated { animation: card-updated-h 1.6s ease-out; }
+[data-costume="haunted"] .live-stamp.is-live .live-dot { background: #5be3a8; box-shadow: 0 0 8px rgba(var(--h-calm), .9); animation: haunt-fade 2s ease-in-out infinite; }
+[data-costume="haunted"] .live-note { border-color: rgba(var(--h-candle), .45); background: rgba(var(--h-candle), .1); color: #ffe2b8; }
+@keyframes card-updated-h { 0% { border-color: rgba(var(--aura), 1); box-shadow: 0 0 0 1px rgba(var(--aura), .9), 0 0 44px 2px rgba(var(--aura), .6); } 100% { border-color: rgba(148, 163, 184, .11); } }
+.machine-card.is-called { outline: 2px solid rgba(13, 110, 253, .6); outline-offset: 2px; }
+.emf-led.is-called { transform: scale(1.45); }
+[data-costume="haunted"] .machine-card.is-called { outline: none; border-color: rgba(var(--aura), .7); }
+[data-costume="haunted"] .machine-card.is-called .aura { animation: none; box-shadow: inset 3px 0 0 rgba(var(--aura), 1), 0 0 0 1px rgba(var(--aura), .8), 0 0 46px 4px rgba(var(--aura), .55); }
+
+/* =====================================================================================================
+   4. Machine page
+   ===================================================================================================== */
+[data-costume="haunted"] .possession-vignette {
+    display: block; position: fixed; inset: 0; z-index: 1020; pointer-events: none;
+    box-shadow: inset 0 0 160px 36px rgba(255, 30, 60, .2), inset 0 0 44px rgba(255, 30, 60, .14);
+    animation: possessed 4.5s ease-in-out infinite;
+}
+@keyframes possessed { 0%, 100% { opacity: .5; } 50% { opacity: 1; } }
+
+[data-costume="haunted"] .omen {
+    background: radial-gradient(circle at 38% 30%, rgba(255, 255, 255, .13), rgba(var(--omen-rgb), .1) 46%, rgba(0, 0, 0, .3) 74%);
+    box-shadow: inset 0 0 24px rgba(var(--omen-rgb), .38), 0 0 36px -6px rgba(var(--omen-rgb), .65);
+}
+[data-costume="haunted"] .omen::before {
+    content: ""; position: absolute; inset: 15px; border-radius: 50%; pointer-events: none;
+    background: conic-gradient(from 0deg, transparent, rgba(var(--omen-rgb), .22), transparent 40%, rgba(196, 181, 253, .16), transparent 75%);
+    filter: blur(7px); animation: orb-swirl 9s linear infinite;
+}
+[data-costume="haunted"] .omen.risk-LOW { --omen: #5be3a8; --omen-rgb: var(--h-calm); }
+[data-costume="haunted"] .omen.risk-MEDIUM { --omen: #ffb84d; --omen-rgb: var(--h-candle); }
+[data-costume="haunted"] .omen.risk-HIGH { --omen: #ff7e24; --omen-rgb: var(--h-pumpkin); }
+[data-costume="haunted"] .omen.risk-CRITICAL { --omen: #ff4d5e; --omen-rgb: var(--h-blood); }
+[data-costume="haunted"] .omen-track { stroke: rgba(255, 255, 255, .06); }
+[data-costume="haunted"] .omen-value { filter: drop-shadow(0 0 6px rgba(var(--omen-rgb), .95)); }
+[data-costume="haunted"] .omen .display-6 { color: #fff7ea; text-shadow: 0 0 16px rgba(var(--omen-rgb), .9); }
+@keyframes orb-swirl { to { transform: rotate(360deg); } }
+
+/* the field guide to the four kinds of event */
+.bestiary .beast { position: relative; height: 100%; }
+.beast-ico { float: right; width: 2rem; height: 2rem; margin: 0 0 .3rem .5rem; }
+.spirit-name { display: block; margin: .1rem 0 .4rem; font-family: var(--h-display); font-size: .78rem; letter-spacing: .05em; }
+[data-costume="haunted"] .bestiary .beast {
+    padding: .85rem .95rem; border-radius: .8rem; background: rgba(255, 255, 255, .025); border: 1px solid rgba(148, 163, 184, .12);
+    transition: transform .3s cubic-bezier(.3, 1.4, .5, 1), border-color .3s, box-shadow .3s;
+}
+[data-costume="haunted"] .bestiary .beast:hover { transform: translateY(-3px); border-color: rgba(var(--beast), .5); box-shadow: 0 0 30px -12px rgba(var(--beast), .9); }
+[data-costume="haunted"] .beast .beast-ico { color: rgb(var(--beast)); filter: drop-shadow(0 0 8px rgba(var(--beast), .75)); }
+[data-costume="haunted"] .beast .spirit-name { color: rgb(var(--beast)); }
+.beast-poltergeist { --beast: 196, 181, 253; }
+.beast-apparition { --beast: 143, 184, 255; }
+.beast-omen { --beast: 255, 184, 77; }
+.beast-grave { --beast: 214, 208, 196; }
+[data-costume="haunted"] .beast-poltergeist .beast-ico { animation: glitch 3.4s steps(2) infinite; }
+[data-costume="haunted"] .beast-apparition .beast-ico { animation: haunt-fade 4s ease-in-out infinite; }
+[data-costume="haunted"] .beast-omen .beast-ico { animation: candle 3s ease-in-out infinite; }
+@keyframes glitch {
+    0%, 90%, 100% { transform: none; } 91% { transform: translate(1.5px, -1px) skewX(8deg); }
+    93% { transform: translate(-1.5px, 1px) skewX(-6deg); } 95% { transform: translate(1px, 0); }
+}
+
+[data-costume="haunted"] .inspection { background: rgba(255, 255, 255, .02); transition: border-color .3s, box-shadow .3s; }
+[data-costume="haunted"] .inspection .inspection-img { box-shadow: 0 0 0 1px rgba(232, 226, 214, .12), 0 12px 28px -14px rgba(0, 0, 0, .95); }
+[data-costume="haunted"] .inspection.verdict-DEFECT { border-color: rgba(var(--h-blood), .45) !important; box-shadow: 0 0 28px -12px rgba(var(--h-blood), .85); }
+[data-costume="haunted"] .inspection.verdict-DEFECT .inspection-img { box-shadow: 0 0 0 1px rgba(var(--h-blood), .55), 0 0 24px -4px rgba(var(--h-blood), .6); }
+[data-costume="haunted"] .conn-card.conn-STALE, [data-costume="haunted"] .conn-card.conn-OFFLINE {
+    background-image: var(--h-cobweb), linear-gradient(180deg, rgba(27, 31, 45, .82), rgba(14, 16, 25, .86));
+    background-repeat: no-repeat; background-position: top right, 0 0; background-size: 110px 110px, auto;
+}
+[data-costume="haunted"] .chart-box { border-radius: .7rem; background: radial-gradient(120% 90% at 50% 100%, rgba(94, 234, 212, .045), transparent 70%); }
+[data-costume="haunted"] .chart-box:not(.is-loaded)::after { content: "Summoning readings…"; font-family: var(--h-display); letter-spacing: .08em; color: #c4b5fd; animation: haunt-fade 1.6s ease-in-out infinite; }
+[data-costume="haunted"] .is-error .chart-box:not(.is-loaded)::after { content: "The readings would not come through. Retrying every 15 s."; color: #ffa8b0; }
+
+/* =====================================================================================================
+   5. Investigation: how solid a piece of evidence looks says how far to trust it
+   ===================================================================================================== */
+.ev-legend { display: flex; flex-wrap: wrap; align-items: center; gap: .4rem .6rem; margin-top: .5rem; padding-top: .5rem; border-top: 1px dashed rgba(148, 163, 184, .18); }
+.ev-legend-title { font-family: var(--h-display); color: #e9dcc2; margin-right: .2rem; }
+.ev-swatch { padding: .12rem .55rem; border-radius: .45rem; font-size: .74rem; color: var(--bs-body-color); }
+[data-costume="haunted"] .ev-swatch.ev-MEASURED, [data-costume="haunted"] .ev-group.ev-MEASURED .evidence-item {
+    background: linear-gradient(180deg, rgba(232, 226, 214, .06), rgba(232, 226, 214, .025)); border: 1px solid rgba(232, 226, 214, .3) !important;
+    box-shadow: inset 0 1px 0 rgba(255, 255, 255, .06), 0 2px 6px rgba(0, 0, 0, .35);
+}
+[data-costume="haunted"] .ev-swatch.ev-RULE_BASED, [data-costume="haunted"] .ev-group.ev-RULE_BASED .evidence-item {
+    background: rgba(143, 184, 255, .04); border: 1px solid rgba(143, 184, 255, .32) !important;
+    box-shadow: inset 0 0 0 3px rgba(0, 0, 0, .25), inset 0 0 0 4px rgba(143, 184, 255, .12);
+}
+[data-costume="haunted"] .ev-swatch.ev-MODEL_PREDICTION, [data-costume="haunted"] .ev-group.ev-MODEL_PREDICTION .evidence-item {
+    background: radial-gradient(120% 140% at 0% 0%, rgba(143, 184, 255, .1), transparent 60%), radial-gradient(120% 140% at 100% 100%, rgba(196, 181, 253, .08), transparent 60%);
+    border: 1px dashed rgba(143, 184, 255, .45) !important; box-shadow: 0 0 22px -12px rgba(143, 184, 255, .8);
+}
+[data-costume="haunted"] .ev-swatch.ev-DOCUMENTED, [data-costume="haunted"] .ev-group.ev-DOCUMENTED .evidence-item {
+    background: linear-gradient(180deg, rgba(233, 210, 160, .08), rgba(233, 210, 160, .035)); border: 1px solid rgba(233, 210, 160, .3) !important;
+}
+[data-costume="haunted"] .ev-group.ev-DOCUMENTED .evidence-detail { color: #e9dcc2 !important; font-family: var(--h-display); letter-spacing: .01em; }
+[data-costume="haunted"] .ev-swatch.ev-AI_INTERPRETATION, [data-costume="haunted"] .ai-ghost .evidence-item {
+    background: linear-gradient(180deg, rgba(196, 181, 253, .08), rgba(94, 234, 212, .03)); border: 1px dotted rgba(196, 181, 253, .55) !important;
+    box-shadow: 0 0 24px -12px rgba(167, 139, 250, .9); border-radius: .6rem;
+}
+[data-costume="haunted"] .ev-swatch.ev-AI_INTERPRETATION { opacity: .85; }
+[data-costume="haunted"] .card.ai-ghost {
+    background: linear-gradient(180deg, rgba(196, 181, 253, .07), rgba(94, 234, 212, .03)), rgba(14, 16, 25, .62);
+    border: 1px dashed rgba(196, 181, 253, .4); box-shadow: 0 0 44px -20px rgba(167, 139, 250, .8), inset 0 0 60px -30px rgba(196, 181, 253, .4);
+}
+[data-costume="haunted"] .card.ai-ghost > .card-body::after {
+    content: ""; position: absolute; right: 16px; top: 12px; width: 64px; height: 72px; pointer-events: none;
+    background: var(--h-ghost-mark) no-repeat center / contain; opacity: .1; animation: bob 6s ease-in-out infinite;
+}
+[data-costume="haunted"] .card.ai-ghost > .card-body { position: relative; }
+
+[data-costume="haunted"] a.cite { color: #ffd28a; background: rgba(var(--h-candle), .12); box-shadow: inset 0 0 0 1px rgba(var(--h-candle), .35); border-radius: .3rem; padding: 0 .28rem; transition: background-color .2s, box-shadow .2s, color .2s; }
+[data-costume="haunted"] a.cite:hover, [data-costume="haunted"] a.cite:focus-visible { color: #fff4dc; background: rgba(var(--h-candle), .26); box-shadow: inset 0 0 0 1px rgba(var(--h-candle), .75), 0 0 16px rgba(var(--h-candle), .6); text-shadow: none; }
+[data-costume="haunted"] .evidence-item:target, [data-costume="haunted"] .section-item:target { outline: none; box-shadow: 0 0 0 1px rgba(var(--h-candle), .85), 0 0 30px -4px rgba(var(--h-candle), .6) !important; }
+[data-costume="haunted"] .evidence-item.is-summoned { outline: none; box-shadow: 0 0 0 1px rgba(var(--h-candle), .9), 0 0 32px -2px rgba(var(--h-candle), .6) !important; animation: summoned 1.1s ease-out; }
+@keyframes summoned { 0% { transform: scale(1); } 30% { transform: scale(1.012); } 100% { transform: scale(1); } }
+[data-costume="haunted"] .spirit-preview {
+    isolation: isolate;
+    background-color: #100e1a; background-image: linear-gradient(180deg, #1f1b2e, #100e1a); color: var(--bs-body-color);
+    border-color: rgba(var(--h-candle), .38); box-shadow: 0 0 0 1px rgba(0, 0, 0, .5), 0 20px 44px -14px rgba(0, 0, 0, .95), 0 0 32px -8px rgba(var(--h-candle), .45);
+}
+[data-costume="haunted"] .spirit-preview .sp-body { color: #cdd3df; }
+[data-costume="haunted"] .spirit-preview .sp-foot { color: var(--h-dim); }
+[data-costume="haunted"] .spirit-thread path { stroke: rgba(255, 205, 130, .8); stroke-width: 2; filter: drop-shadow(0 0 4px rgba(255, 170, 60, .95)); }
+[data-costume="haunted"] main.ev-filtering .evidence-item.ev-match { box-shadow: 0 0 0 1px rgba(196, 181, 253, .65), 0 0 24px -6px rgba(167, 139, 250, .75) !important; }
+
+/* recommendations: approved ones carry a wax seal, rejected ones fade out of this world */
+[data-costume="haunted"] .rec.rec-APPROVED { border-color: rgba(var(--h-calm), .35) !important; }
+[data-costume="haunted"] .rec.rec-APPROVED .rec-seal, [data-costume="haunted"] .rec.is-sealing .rec-seal {
+    display: block; position: absolute; right: 14px; bottom: 12px; width: 58px; height: 58px; padding: 13px;
+    color: rgba(60, 4, 14, .75); border-radius: 50% 46% 52% 48%; rotate: -14deg;
+    background: radial-gradient(circle at 34% 28%, #ff7a7a, #c21b38 52%, #6e0a1d 100%);
+    box-shadow: 0 3px 8px rgba(0, 0, 0, .6), inset 0 -4px 7px rgba(0, 0, 0, .38), inset 0 2px 3px rgba(255, 255, 255, .28), 0 0 22px -4px rgba(255, 60, 80, .6);
+}
+[data-costume="haunted"] .rec.is-sealing .rec-seal { animation: seal-stamp .55s cubic-bezier(.2, 1.6, .4, 1) both; right: auto; bottom: auto; left: 50%; top: 50%; translate: -50% -50%; z-index: 2; }
+[data-costume="haunted"] .rec.rec-REJECTED { opacity: .72; border-style: dashed !important; }
+[data-costume="haunted"] .rec.rec-REJECTED > .fw-semibold { text-decoration: line-through; text-decoration-color: rgba(var(--h-blood), .75); text-decoration-thickness: 2px; }
+@keyframes seal-stamp { 0% { opacity: 0; transform: scale(2.6); } 60% { opacity: 1; transform: scale(.92); } 100% { transform: scale(1); } }
+
+[data-costume="haunted"] .report-body {
+    background: linear-gradient(180deg, #211a12, #17120c) !important; color: #ecdcbc; border-color: rgba(236, 220, 188, .22) !important;
+    box-shadow: inset 0 0 44px rgba(0, 0, 0, .6), inset 0 0 0 1px rgba(0, 0, 0, .4);
+}
+[data-costume="haunted"] .report-sealed { position: relative; }
+[data-costume="haunted"] .report-sealed::after {
+    content: ""; position: absolute; top: -6px; right: 4px; width: 48px; height: 48px; border-radius: 50% 46% 52% 48%; rotate: 12deg;
+    background: var(--h-ghost-mark) no-repeat center / 22px 25px, radial-gradient(circle at 34% 28%, #ff7a7a, #c21b38 52%, #6e0a1d 100%);
+    box-shadow: 0 3px 8px rgba(0, 0, 0, .6), inset 0 -4px 7px rgba(0, 0, 0, .38), inset 0 2px 3px rgba(255, 255, 255, .28);
+    opacity: .92;
+}
+
+/* =====================================================================================================
+   6. Kiro assistant, knowledge, maintenance
+   ===================================================================================================== */
+[data-costume="haunted"] .kiro-avatar { display: inline-block; width: 24px; height: 27px; vertical-align: -8px; margin-right: .2rem; filter: drop-shadow(0 0 8px rgba(196, 181, 253, .75)); }
+[data-costume="haunted"] .chat-msg.chat-kiro {
+    border-left: 0; padding: .9rem 1rem; border-radius: 1rem 1rem 1rem .3rem;
+    background: linear-gradient(180deg, rgba(196, 181, 253, .07), rgba(94, 234, 212, .025)); border: 1px dashed rgba(196, 181, 253, .32);
+    box-shadow: 0 0 34px -20px rgba(167, 139, 250, .85);
+}
+[data-costume="haunted"] .chat-msg.chat-user {
+    border-left: 0; margin-left: 12%; padding: .7rem 1rem; border-radius: 1rem 1rem .3rem 1rem;
+    background: rgba(var(--h-candle), .06); border: 1px solid rgba(var(--h-candle), .22);
+}
+[data-costume="haunted"] #kiro-run .spinner-border { display: none; }
+[data-costume="haunted"] .channeling { display: flex; align-items: center; gap: 1rem; margin-bottom: .5rem; font-size: .85rem; color: #ddd3ff; font-style: italic; }
+.ch-circle { position: relative; width: 64px; height: 64px; flex-shrink: 0; }
+.ch-ghost { position: absolute; left: 14px; top: 10px; width: 36px; height: 40px; animation: channel 2.4s ease-in-out infinite; filter: drop-shadow(0 0 12px rgba(196, 181, 253, .9)); }
+.ch-spark { position: absolute; left: 50%; top: 50%; width: 7px; height: 7px; margin: -3.5px; border-radius: 50%; background: #ffd28a; box-shadow: 0 0 10px #ff9a3c; animation: orbit 2.4s linear infinite; }
+.ch-spark.s2 { animation-delay: -.8s; background: #c4b5fd; box-shadow: 0 0 10px #a78bfa; }
+.ch-spark.s3 { animation-delay: -1.6s; background: #86f3c6; box-shadow: 0 0 10px #5be3a8; }
+#kiro-steps li.is-new { animation: materialize .7s cubic-bezier(.2, .9, .3, 1) both; }
+@keyframes channel { 0%, 100% { transform: translateY(0) rotate(-4deg); } 50% { transform: translateY(-6px) rotate(4deg); } }
+@keyframes orbit { from { transform: rotate(0deg) translateX(30px) rotate(0deg); } to { transform: rotate(360deg) translateX(30px) rotate(-360deg); } }
+@keyframes materialize { from { opacity: 0; filter: blur(6px); transform: translateX(-8px); } }
+[data-costume="haunted"] .kiro-listener { display: inline-block; width: 30px; height: 34px; margin-left: .55rem; vertical-align: middle; filter: drop-shadow(0 0 8px rgba(196, 181, 253, .65)); transition: transform .45s cubic-bezier(.3, 1.6, .5, 1); animation: bob 4s ease-in-out infinite; }
+[data-costume="haunted"] .kiro-listener.is-listening { transform: translateY(-5px) rotate(-10deg) scale(1.12); }
+[data-costume="haunted"] .example-chip:hover, [data-costume="haunted"] .example-chip:focus-visible { color: #fff !important; border-color: rgba(196, 181, 253, .65) !important; box-shadow: 0 0 18px -4px rgba(167, 139, 250, .8); transform: translateY(-1px); }
+
+[data-costume="haunted"] mark.ink { background: rgba(var(--h-candle), .16); color: #ffe4b8; box-shadow: 0 0 0 1px rgba(var(--h-candle), .32); text-shadow: 0 0 10px rgba(255, 170, 60, .6); }
+[data-costume="haunted"] .search-hit { padding: .55rem .7rem; border-radius: .7rem; border: 1px solid rgba(233, 210, 160, .14); background: linear-gradient(180deg, rgba(233, 210, 160, .045), transparent); transition: border-color .25s, box-shadow .25s; }
+[data-costume="haunted"] .search-hit:hover { border-color: rgba(233, 210, 160, .35); box-shadow: 0 0 26px -14px rgba(233, 210, 160, .7); }
+[data-costume="haunted"] .section-item { background: linear-gradient(180deg, rgba(233, 210, 160, .04), transparent); border-color: rgba(233, 210, 160, .16) !important; }
+
+/* =====================================================================================================
+   7. Overlays: séance, spirit board, the Kiro ghost, bats and swarms
+   ===================================================================================================== */
+[data-costume="haunted"] .seance { background: radial-gradient(circle at 50% 42%, rgba(46, 26, 80, .55), rgba(3, 4, 8, .93) 68%); backdrop-filter: blur(2px); }
+[data-costume="haunted"] .seance-spinner { display: none; }
+[data-costume="haunted"] .seance-circle { display: block; }
+[data-costume="haunted"] .seance-title { font-family: var(--h-display); font-size: 1.35rem; letter-spacing: .04em; color: #f4eee3; text-shadow: 0 0 20px rgba(167, 139, 250, .7); }
+[data-costume="haunted"] .seance-sub { color: #cdd3df; }
+[data-costume="haunted"] .seance-steps span { border-color: rgba(var(--h-candle), .35); color: #ffe2b8; background: rgba(var(--h-candle), .07); }
+.seance-circle .sc-ghost { position: absolute; left: 50%; top: 50%; width: 56px; height: 63px; margin: -34px 0 0 -28px; animation: channel 2.2s ease-in-out infinite; filter: drop-shadow(0 0 16px rgba(196, 181, 253, .95)); }
+.seance-circle .sc-ring { position: absolute; inset: 0; animation: orb-swirl 14s linear infinite; }
+.seance-candle { position: absolute; left: 50%; top: 50%; width: 9px; height: 16px; margin: -8px 0 0 -4.5px; border-radius: 2px; background: linear-gradient(#f4ead6, #c9bda4); transform: rotate(var(--a)) translateY(-66px) rotate(calc(var(--a) * -1)); }
+.seance-candle::before { content: ""; position: absolute; left: 50%; top: -11px; width: 7px; height: 11px; margin-left: -3.5px; border-radius: 50% 50% 45% 45%; background: radial-gradient(circle at 50% 70%, #fff6d6, #ffb84d 45%, #ff6a1a 80%); box-shadow: 0 0 12px 3px rgba(255, 150, 40, .75); animation: candle 1.3s ease-in-out infinite; animation-delay: calc(var(--i) * -.2s); }
+
+/* spirit board in costume: an Ouija board */
+[data-costume="haunted"] .sb-backdrop { background: radial-gradient(circle at 50% 30%, rgba(30, 14, 40, .55), rgba(2, 2, 6, .88) 65%); backdrop-filter: blur(2px); }
+[data-costume="haunted"] .sb-panel {
+    color: #f1dfc2; border: 1px solid rgba(233, 197, 139, .35);
+    background:
+        radial-gradient(130% 70% at 50% 0%, rgba(255, 190, 120, .1), transparent 60%),
+        repeating-linear-gradient(97deg, rgba(255, 255, 255, .014) 0 2px, transparent 2px 9px),
+        linear-gradient(180deg, #2a1c12, #1a110b 60%, #140d08);
+    box-shadow: inset 0 0 0 6px rgba(0, 0, 0, .25), inset 0 0 0 7px rgba(233, 197, 139, .22), 0 0 0 1px rgba(0, 0, 0, .6),
+        0 40px 120px -20px rgba(0, 0, 0, .95), 0 0 90px -24px rgba(255, 140, 40, .4);
+}
+[data-costume="haunted"] .sb-board { display: block; padding: .7rem 1.2rem 0; }
+.sb-board svg { display: block; width: 100%; height: auto; }
+.sb-board text { fill: #e2bd84; font-family: var(--h-display); }
+.sb-board .sb-letters { font-size: 30px; }
+.sb-board .sb-digits { font-size: 24px; letter-spacing: 2px; }
+.sb-board .sb-corner { font-size: 26px; letter-spacing: 3px; }
+.sb-board tspan { transition: fill .35s, stroke .35s, stroke-width .35s; }
+.sb-board .lit { fill: #fff3d9; stroke: rgba(255, 170, 60, .8); stroke-width: 5px; paint-order: stroke; }
+.sb-board .sb-glyph { fill: none; stroke: #e2bd84; stroke-width: 2; }
+.sb-board .sb-yes.lit, .sb-board .sb-no.lit { fill: #fff3d9; stroke: rgba(255, 170, 60, .85); stroke-width: 5px; paint-order: stroke; }
+[data-costume="haunted"] .sb-input-wrap { border-bottom-color: rgba(233, 197, 139, .22); }
+[data-costume="haunted"] .sb-input-wrap .hi { color: #e2bd84; }
+[data-costume="haunted"] .sb-input { font-family: var(--h-display); font-size: 1.15rem; letter-spacing: .03em; color: #fff3dc; caret-color: #ffb84d; }
+[data-costume="haunted"] .sb-input::placeholder { color: rgba(241, 223, 194, .45); }
+[data-costume="haunted"] .sb-input-wrap kbd, [data-costume="haunted"] .sb-foot kbd { background: rgba(0, 0, 0, .35); color: #f1dfc2; box-shadow: inset 0 0 0 1px rgba(233, 197, 139, .25); }
+[data-costume="haunted"] .sb-list { padding-left: 66px; }
+[data-costume="haunted"] .sb-group { color: rgba(241, 223, 194, .55); font-family: var(--h-display); }
+[data-costume="haunted"] .sb-opt { color: #f6e8cf; transition: background-color .2s; }
+[data-costume="haunted"] .sb-opt[aria-selected="true"] { background: rgba(255, 190, 120, .13); box-shadow: inset 0 0 0 1px rgba(255, 190, 120, .32); }
+[data-costume="haunted"] .sb-opt .sb-ico { color: #e2bd84; }
+[data-costume="haunted"] .sb-opt .sb-meta, [data-costume="haunted"] .sb-empty { color: rgba(241, 223, 194, .62); }
+[data-costume="haunted"] .sb-opt .sb-kind { color: rgba(241, 223, 194, .7); border-color: rgba(233, 197, 139, .3); }
+[data-costume="haunted"] .sb-opt mark { padding: 0; background: none; color: #ffcf7a; text-shadow: 0 0 10px rgba(255, 170, 60, .7); }
+[data-costume="haunted"] .sb-foot { border-top-color: rgba(233, 197, 139, .18); color: rgba(241, 223, 194, .6); }
+[data-costume="haunted"] .sb-goodbye { display: block; padding: .1rem 0 .5rem; text-align: center; font-family: var(--h-display); letter-spacing: .4em; font-size: .78rem; color: rgba(226, 189, 132, .55); transition: color .3s, text-shadow .3s; }
+[data-costume="haunted"] .sb-goodbye.lit { color: #fff3d9; text-shadow: 0 0 14px rgba(255, 170, 60, .95); }
+[data-costume="haunted"] .sb-planchette {
+    display: block; position: absolute; left: 10px; top: 0; width: 46px; height: 52px; pointer-events: none; z-index: 2;
+    transform: translate(0, var(--py, 0px)) rotate(var(--pr, -90deg)); transition: transform .45s cubic-bezier(.3, 1.35, .45, 1);
+    filter: drop-shadow(0 6px 10px rgba(0, 0, 0, .65));
+}
+.sb-opt mark { padding: 0; background: rgba(255, 193, 7, .35); color: inherit; }
+
+/* the Kiro ghost that keeps you company */
+[data-costume="haunted"] .kiro-companion {
+    display: block; position: fixed; right: 0; bottom: 22px; z-index: 1045; width: 60px; height: 68px;
+    transform: translateX(30px) rotate(-14deg); transition: transform .5s cubic-bezier(.3, 1.5, .5, 1);
+}
+[data-costume="haunted"] .kiro-companion:hover, [data-costume="haunted"] .kiro-companion:focus-within,
+[data-costume="haunted"] .kiro-companion.is-out, [data-costume="haunted"] .kiro-companion.is-worried { transform: translateX(-18px) rotate(0deg); }
+.kc-button { position: relative; display: block; width: 100%; height: 100%; padding: 0; border: 0; background: none; cursor: pointer; -webkit-tap-highlight-color: transparent; }
+.kc-button > svg { width: 100%; height: 100%; overflow: visible; animation: bob 4.2s ease-in-out infinite; filter: drop-shadow(0 0 14px rgba(196, 181, 253, .7)); transition: filter .4s; }
+.kc-button:hover > svg { animation-duration: 1.7s; filter: drop-shadow(0 0 20px rgba(196, 181, 253, .95)); }
+.kc-button:focus-visible { outline: 2px solid #ffb84d; outline-offset: 6px; border-radius: 14px; }
+.kiro-companion .kc-shadow { position: absolute; left: 50%; bottom: -9px; width: 40px; height: 9px; margin-left: -20px; border-radius: 50%; background: radial-gradient(rgba(0, 0, 0, .6), transparent 70%); animation: shadow-bob 4.2s ease-in-out infinite; }
+.kc-eyes { transition: transform .12s ease-out; }
+.kc-eye { transform-box: fill-box; transform-origin: center; animation: blink 6s infinite; }
+.kc-brows { opacity: 0; transition: opacity .3s; }
+.kc-mouth { transform-box: fill-box; transform-origin: center; transition: transform .3s; }
+.kiro-companion.is-uneasy .kc-button > svg { filter: drop-shadow(0 0 16px rgba(var(--h-candle), .85)); }
+.kiro-companion.is-worried .kc-button > svg { filter: drop-shadow(0 0 18px rgba(var(--h-blood), .95)); animation: bob 1.6s ease-in-out infinite, shiver 3s linear infinite; }
+.kiro-companion.is-worried .kc-brows, .kiro-companion.is-uneasy .kc-brows { opacity: 1; }
+.kiro-companion.is-worried .kc-mouth { transform: scale(1.25, 1.5); }
+.kiro-companion.is-booing .kc-mouth { transform: scale(1.6, 1.9); }
+.kc-badge { position: absolute; top: -4px; right: -4px; min-width: 1.15rem; height: 1.15rem; padding: 0 .3rem; border-radius: 999px; font-size: .68rem; font-weight: 700; line-height: 1.15rem; color: #fff; background: #ff4d5e; box-shadow: 0 0 12px rgba(var(--h-blood), .95); display: none; }
+.kiro-companion.is-worried .kc-badge, .kiro-companion.is-uneasy .kc-badge { display: block; }
+.kiro-companion.is-uneasy .kc-badge { background: #e8901c; box-shadow: 0 0 12px rgba(var(--h-candle), .95); }
+.kc-bubble {
+    position: absolute; right: 72px; bottom: 30px; width: max-content; max-width: 270px; padding: .5rem .75rem;
+    border-radius: .95rem .95rem .2rem .95rem; background-color: #14121f; color: #f1ecff; font-size: .8rem; line-height: 1.38; text-align: left;
+    border: 1px solid rgba(196, 181, 253, .38); box-shadow: 0 12px 30px -10px rgba(0, 0, 0, .95), 0 0 24px -8px rgba(167, 139, 250, .75);
+    opacity: 0; transform: translateY(6px) scale(.96); transform-origin: bottom right; transition: opacity .25s, transform .25s; pointer-events: none;
+}
+.kc-bubble.is-shown { opacity: 1; transform: none; }
+.kiro-companion.is-worried .kc-bubble { border-color: rgba(var(--h-blood), .55); }
+@keyframes blink { 0%, 46%, 50%, 100% { transform: scaleY(1); } 48% { transform: scaleY(.1); } }
+@keyframes shiver { 0%, 88%, 100% { translate: 0 0; } 90% { translate: -2px 0; } 92% { translate: 2px 0; } 94% { translate: -2px 0; } 96% { translate: 1px 0; } }
+@keyframes shadow-bob { 0%, 100% { transform: scale(1); opacity: .8; } 50% { transform: scale(.75); opacity: .45; } }
+
+.haunt-bat { position: fixed; top: 0; left: 0; z-index: 1035; width: var(--s, 22px); height: var(--s, 22px); color: #1a1426; pointer-events: none;
+    offset-path: var(--path); offset-rotate: 0deg; animation: bat-fly var(--d, 7s) linear var(--delay, 0s) both; filter: drop-shadow(0 0 4px rgba(196, 181, 253, .55)); }
+.haunt-bat svg { width: 100%; height: 100%; animation: flap .2s ease-in-out infinite alternate; }
+@keyframes bat-fly { 0% { offset-distance: 0%; opacity: 0; } 6%, 94% { opacity: 1; } 100% { offset-distance: 100%; opacity: 0; } }
+@keyframes flap { from { transform: scaleY(1); } to { transform: scaleY(.4) translateY(1px); } }
+
+.boo-ghost { position: fixed; z-index: 1080; left: var(--x); bottom: -90px; width: var(--s, 48px); height: calc(var(--s, 48px) * 1.125); pointer-events: none; opacity: 0;
+    animation: boo-fly var(--d, 4s) cubic-bezier(.35, .1, .4, 1) var(--delay, 0s) forwards; filter: drop-shadow(0 0 12px rgba(196, 181, 253, .85)); }
+@keyframes boo-fly {
+    0% { opacity: 0; transform: translate(0, 0) rotate(0deg) scale(.6); } 10% { opacity: .95; }
+    50% { transform: translate(var(--dx1), -55vh) rotate(var(--r1)) scale(1); } 88% { opacity: .9; }
+    100% { opacity: 0; transform: translate(var(--dx2), -120vh) rotate(var(--r2)) scale(1.1); }
+}
+.costume-curtain { position: fixed; inset: 0; z-index: 1090; pointer-events: none; background: #020204; opacity: 0; }
+.costume-curtain.daylight { background: #fff8e7; }
+
+/* shared motion */
+@keyframes bob { 0%, 100% { transform: translateY(0); } 50% { transform: translateY(-5px); } }
+@keyframes candle { 0%, 100% { opacity: 1; transform: scale(1); } 40% { opacity: .82; transform: scale(.96); } 70% { opacity: .95; transform: scale(1.03); } }
+
+/* =====================================================================================================
+   8. Sign-in: the plant after dark. The cursor is a lantern; some dark windows are not empty.
+   ===================================================================================================== */
+.haunt-scene { display: none; }
+[data-costume="haunted"] .haunt-scene { display: block; position: fixed; inset: 0; z-index: -1; overflow: hidden; pointer-events: none; }
+.haunt-scene .sky {
+    position: absolute; inset: 0;
+    background:
+        radial-gradient(1200px 700px at 80% 16%, rgba(167, 139, 250, .22), transparent 60%),
+        radial-gradient(900px 520px at 12% 88%, rgba(255, 126, 36, .13), transparent 60%),
+        linear-gradient(180deg, #04050a 0%, #0b0b1a 42%, #1a1030 76%, #26122f 100%);
+}
+.haunt-scene .stars { position: absolute; top: 0; left: 0; width: 1.6px; height: 1.6px; border-radius: 50%; animation: twinkle 5s ease-in-out infinite alternate; }
+.haunt-scene .stars-a { box-shadow: 0.8vw 38.2vh 0 0 rgba(255,250,235,.37), 28.3vw 46.3vh 0 .5px rgba(255,250,235,.65), 35.5vw 41.4vh rgba(255,250,235,.58), 72.5vw 39.9vh rgba(255,250,235,.42), 95.5vw 58.1vh 0 .5px rgba(255,250,235,.53), 42.8vw 3.9vh rgba(255,250,235,.49), 39.8vw 16.3vh rgba(255,250,235,.84), 89.5vw 57.5vh rgba(255,250,235,.67), 58.9vw 58vh rgba(255,250,235,.89), 25vw 53.3vh rgba(255,250,235,.81), 69.7vw .6vh rgba(255,250,235,.39), 71.6vw 58.2vh rgba(255,250,235,.48), 16.4vw 58.3vh rgba(255,250,235,.5), 14.5vw 26.6vh rgba(255,250,235,.59), 59.9vw 30vh rgba(255,250,235,.59), 69.7vw 10.1vh 0 .5px rgba(255,250,235,.53), 22.8vw 18vh rgba(255,250,235,.59), 14.5vw 2.2vh rgba(255,250,235,.49), 67.1vw 9vh rgba(255,250,235,.45), 15vw 39.5vh rgba(255,250,235,.42), 48vw 15.6vh rgba(255,250,235,.57), 16.3vw 3.7vh 0 .5px rgba(255,250,235,.38), 44.1vw 7.3vh rgba(255,250,235,.6), 89.7vw 11.5vh rgba(255,250,235,.61), 85.5vw 37vh rgba(255,250,235,.75), 96vw 26.2vh 0 .5px rgba(255,250,235,.42), 48.5vw 23.3vh rgba(255,250,235,.52), 1.8vw 57.8vh rgba(255,250,235,.94), 77.6vw 21.7vh rgba(255,250,235,.48), 72vw 21.5vh rgba(255,250,235,.87), 81.1vw 6.2vh rgba(255,250,235,.41), 70.9vw 51.1vh rgba(255,250,235,.93), 50.4vw 23.8vh rgba(255,250,235,.64), 99.5vw 29vh rgba(255,250,235,.81), 23.3vw 6.6vh rgba(255,250,235,.58), 40.2vw 1.6vh rgba(255,250,235,.58), 78.8vw 27.2vh rgba(255,250,235,.48), 94.2vw 40.8vh 0 .5px rgba(255,250,235,.6), 64vw 27.4vh 0 .5px rgba(255,250,235,.89), 52.5vw 12.5vh rgba(255,250,235,.58), 25.5vw 38.8vh rgba(255,250,235,.78), 85.9vw 2vh rgba(255,250,235,.5), 3.1vw 14.1vh rgba(255,250,235,.51), 90.2vw 18.5vh rgba(255,250,235,.61), 35.9vw 19.9vh rgba(255,250,235,.36), 87.9vw 33.9vh rgba(255,250,235,.87), 86vw 21.9vh rgba(255,250,235,.92), 65.9vw 17.7vh rgba(255,250,235,.4), 68vw 22.9vh rgba(255,250,235,.48), 54.3vw 27.2vh rgba(255,250,235,.78), 49.8vw 16.2vh rgba(255,250,235,.76), 53.8vw 6.2vh rgba(255,250,235,.58), 74.1vw 3.1vh rgba(255,250,235,.79), 81.1vw 31.6vh rgba(255,250,235,.53), 83.1vw 22.1vh rgba(255,250,235,.37), 47.8vw 4.7vh rgba(255,250,235,.4), 3.3vw 28.3vh 0 .5px rgba(255,250,235,.72), 65.2vw 40.9vh rgba(255,250,235,.72), 89.7vw 24.7vh rgba(255,250,235,.64), 68.9vw 5.5vh rgba(255,250,235,.64), 93.9vw 34.7vh rgba(255,250,235,.73), 94.9vw 10.2vh 0 .5px rgba(255,250,235,.68); }
+.haunt-scene .stars-b { width: 1.1px; height: 1.1px; animation-duration: 7s; animation-delay: -3s; box-shadow: 98vw 41.4vh rgba(255,250,235,.81), 62vw 8.5vh rgba(255,250,235,.76), 64.1vw 22.5vh rgba(255,250,235,.37), 56.3vw 8.7vh rgba(255,250,235,.85), 21.2vw 24.4vh rgba(255,250,235,.7), 82.6vw 17.5vh rgba(255,250,235,.52), 19vw 47.2vh rgba(255,250,235,.38), 52.9vw 4.8vh rgba(255,250,235,.48), 8.3vw 13.4vh rgba(255,250,235,.88), 48vw 43.4vh 0 .5px rgba(255,250,235,.57), 47.7vw 6.1vh rgba(255,250,235,.89), 14.4vw 12.7vh rgba(255,250,235,.87), 20.1vw 44.6vh 0 .5px rgba(255,250,235,.74), 95.1vw 42.7vh rgba(255,250,235,.47), 60.9vw 12.4vh rgba(255,250,235,.87), 11.2vw 2.5vh rgba(255,250,235,.94), 29vw 25.7vh rgba(255,250,235,.4), 87.1vw 29.5vh rgba(255,250,235,.65), 94.5vw 25.7vh 0 .5px rgba(255,250,235,.78), 6.7vw 18.7vh rgba(255,250,235,.88), 38.2vw 8.6vh 0 .5px rgba(255,250,235,.67), 76.9vw 10.8vh rgba(255,250,235,.64), 27.1vw 15.2vh rgba(255,250,235,.46), 48.5vw 23.9vh rgba(255,250,235,.38), 13.7vw 18.8vh rgba(255,250,235,.51), 95.5vw 33.4vh rgba(255,250,235,.9), 72.8vw 18.2vh rgba(255,250,235,.64), 82.5vw 15vh rgba(255,250,235,.47), 17.1vw 38.2vh rgba(255,250,235,.55), 25.7vw 29.5vh rgba(255,250,235,.47), 73.5vw 16.5vh rgba(255,250,235,.5), 69.1vw 18.9vh rgba(255,250,235,.67), 21vw 10.1vh rgba(255,250,235,.62), .1vw 37.4vh rgba(255,250,235,.94), 45.4vw 2.7vh rgba(255,250,235,.54), 26.8vw 26.6vh rgba(255,250,235,.91), 47vw 32.2vh rgba(255,250,235,.68), 56.6vw 18vh 0 .5px rgba(255,250,235,.94), 72vw 33.4vh 0 .5px rgba(255,250,235,.38), 25.5vw 4.4vh rgba(255,250,235,.45), 11.5vw 31.9vh rgba(255,250,235,.84), 19vw 18.5vh rgba(255,250,235,.57), 94.6vw 15.5vh rgba(255,250,235,.94), 32.3vw 16.7vh rgba(255,250,235,.87), 51.7vw 29.3vh rgba(255,250,235,.49), 75.4vw 19.6vh rgba(255,250,235,.77), 75.6vw 27.6vh 0 .5px rgba(255,250,235,.75), 3.1vw 23vh rgba(255,250,235,.75), 12.1vw 14.5vh rgba(255,250,235,.58), 22.9vw 11.1vh 0 .5px rgba(255,250,235,.44); }
+.haunt-scene .moon {
+    position: absolute; top: 8vh; right: 12vw; width: clamp(90px, 10vw, 150px); aspect-ratio: 1; border-radius: 50%;
+    background: radial-gradient(circle at 38% 36%, #fffdf2, #efe8d2 42%, #cfc7b0 70%, #b0a891 100%);
+    box-shadow: 0 0 60px 18px rgba(255, 248, 225, .16), 0 0 200px 80px rgba(167, 139, 250, .15);
+}
+.haunt-scene .crater { position: absolute; border-radius: 50%; background: radial-gradient(circle at 40% 40%, rgba(140, 132, 110, .5), rgba(190, 182, 160, .12)); }
+.haunt-scene .crater.c1 { width: 22%; height: 22%; top: 24%; left: 54%; }
+.haunt-scene .crater.c2 { width: 15%; height: 15%; top: 58%; left: 30%; }
+.haunt-scene .crater.c3 { width: 10%; height: 10%; top: 38%; left: 22%; }
+.haunt-scene .cloud {
+    position: absolute; top: 12vh; left: -45vw; width: 58vw; height: 13vh; border-radius: 50%;
+    background: radial-gradient(closest-side, rgba(18, 16, 34, .88), rgba(18, 16, 34, 0)); animation: cloud-drift 85s linear infinite;
+}
+.haunt-scene .cloud-2 { top: 21vh; width: 40vw; height: 9vh; opacity: .85; animation-duration: 115s; animation-delay: -55s; }
+.skyline { position: absolute; left: 0; bottom: 0; width: 100%; height: 58vh; min-height: 300px; }
+.skyline .far > path, .skyline .far > rect:not(.win-far) { fill: #13121f; }
+.skyline .win-far { fill: #26243a; }
+.skyline .win-far.lit { fill: #b08f5a; opacity: .65; }
+.skyline .near > path, .skyline .near > rect, .skyline pattern path { fill: #050509; }
+.skyline .near > .tree { fill: none; stroke: #050509; stroke-width: 9; stroke-linecap: round; }
+.skyline .near > .branch { fill: none; stroke: #050509; stroke-width: 4; stroke-linecap: round; }
+.skyline .near > .pipe { fill: none; stroke: #050509; stroke-width: 12; }
+.skyline .near > .legs { fill: none; stroke: #050509; stroke-width: 5; }
+.skyline .win { fill: #0c0c15; }
+.skyline .win.lit { fill: #ffb347; }
+.skyline .win.lit.f1 { animation: win-flicker 7s infinite; }
+.skyline .win.lit.f2 { animation: win-flicker 11s infinite -4s; }
+.skyline .win.lit.f3 { animation: win-glow 6s ease-in-out infinite; }
+.skyline .win.spirit { fill: #7d6cf2; animation: haunt-fade 5s ease-in-out infinite; }
+.skyline .smoke .puff { fill: rgba(130, 124, 150, .3); filter: blur(5px); transform-box: fill-box; transform-origin: center; animation: puff 9s linear infinite; }
+.skyline .smoke .puff.d2 { animation-delay: -2.2s; } .skyline .smoke .puff.d3 { animation-delay: -4.5s; } .skyline .smoke .puff.d4 { animation-delay: -6.7s; }
+.skyline .beacon { fill: #ff4d5e; animation: beacon 2.6s steps(1) infinite; }
+.skyline .beacon.b2 { animation-delay: -1.3s; }
+.skyline .clock circle { fill: #0e0f18; stroke: rgba(255, 184, 77, .45); stroke-width: 2; }
+.skyline .clock path { fill: none; stroke: rgba(255, 184, 77, .75); stroke-width: 2; stroke-linecap: round; }
+.skyline .tower-ghost path { fill: rgba(243, 240, 255, .94); }
+.skyline .tower-ghost .tg-eye { fill: #15132a; }
+.skyline .window-eyes ellipse { fill: #fff3c4; }
+.haunt-scene .ground-fog {
+    position: absolute; left: -20%; width: 140%; bottom: -6vh; height: 26vh;
+    background:
+        radial-gradient(30% 60% at 20% 60%, rgba(200, 205, 230, .17), transparent 70%),
+        radial-gradient(28% 55% at 55% 70%, rgba(200, 205, 230, .13), transparent 70%),
+        radial-gradient(30% 60% at 85% 60%, rgba(200, 205, 230, .16), transparent 70%);
+    animation: fog-drift 50s linear infinite alternate;
+}
+.haunt-scene .gf-2 { bottom: -11vh; height: 20vh; opacity: .8; animation-duration: 72s; animation-direction: alternate-reverse; }
+.haunt-scene .lantern {
+    position: absolute; inset: 0;
+    background: radial-gradient(circle 240px at var(--mx, 50%) var(--my, 66%), rgba(255, 196, 120, .11) 0%, rgba(0, 0, 0, 0) 46%, rgba(2, 3, 8, .58) 100%);
+}
+@keyframes twinkle { from { opacity: .55; } to { opacity: 1; } }
+@keyframes cloud-drift { to { transform: translateX(175vw); } }
+@keyframes puff { 0% { transform: translate(0, 0) scale(.4); opacity: 0; } 14% { opacity: .9; } 100% { transform: translate(-70px, -150px) scale(2.8); opacity: 0; } }
+@keyframes beacon { 0%, 55% { opacity: 1; } 56%, 100% { opacity: .15; } }
+@keyframes win-flicker { 0%, 70%, 100% { opacity: 1; } 72% { opacity: .35; } 75% { opacity: 1; } 88% { opacity: .7; } 90% { opacity: 1; } }
+@keyframes win-glow { 0%, 100% { opacity: .8; } 50% { opacity: 1; } }
+
+[data-costume="haunted"] .scene-login, [data-costume="haunted"] .scene-error { min-height: 100vh; overflow-x: hidden; }
+[data-costume="haunted"] .login-gate {
+    position: relative; margin-top: 9vh !important; padding: 3.4rem 2rem 1.5rem; text-align: center;
+    background: linear-gradient(180deg, rgba(15, 13, 28, .88), rgba(9, 9, 16, .92)); border: 1px solid rgba(196, 181, 253, .3);
+    border-radius: 210px 210px 22px 22px / 150px 150px 22px 22px; backdrop-filter: blur(6px);
+    box-shadow: 0 0 0 1px rgba(0, 0, 0, .5), 0 40px 90px -30px rgba(0, 0, 0, .95), 0 0 90px -20px rgba(139, 92, 246, .5), inset 0 1px 0 rgba(255, 255, 255, .05);
+}
+[data-costume="haunted"] .login-gate h1 { font-size: 2rem; text-shadow: 0 0 30px rgba(167, 139, 250, .8), 0 0 2px rgba(0, 0, 0, .9); }
+[data-costume="haunted"] .login-gate .card { text-align: left; background: rgba(0, 0, 0, .25); }
+[data-costume="haunted"] .login-gate .alert { text-align: left; }
+.gate-ghost { position: absolute; left: 50%; top: -48px; width: 70px; height: 79px; margin-left: -35px; animation: bob 4s ease-in-out infinite; filter: drop-shadow(0 0 18px rgba(196, 181, 253, .9)); }
+.gate-whisper { margin: -1rem 0 1.25rem; font-size: .9rem; font-style: italic; color: #e9dcc2; }
+.lantern-hint { margin: 1rem 0 0; font-size: .78rem; font-style: italic; color: rgba(205, 210, 222, .62); }
+@media (hover: none) { .lantern-hint { display: none !important; } }
+[data-costume="haunted"] .login-costume { color: #ffe2b8; border-color: rgba(255, 184, 77, .45); }
+[data-costume="haunted"] .login-costume .haunt-switch { background: linear-gradient(90deg, #ff7e24, #ffb84d); }
+
+/* error pages: a tombstone */
+.tomb { position: relative; width: 220px; height: 250px; margin: 0 auto 1.2rem; }
+.tomb-ghost { position: absolute; left: 50%; top: 14px; width: 60px; height: 68px; margin-left: -30px; animation: rise-ghost 5.5s ease-in-out infinite; filter: drop-shadow(0 0 16px rgba(196, 181, 253, .9)); }
+.tomb-stone {
+    position: absolute; left: 22px; right: 22px; bottom: 18px; height: 186px; border-radius: 90px 90px 8px 8px;
+    display: flex; flex-direction: column; align-items: center; justify-content: center; gap: .1rem;
+    background: linear-gradient(180deg, #3b3e4d, #23252f 60%, #191a22);
+    box-shadow: inset 0 2px 0 rgba(255, 255, 255, .08), inset -12px -12px 30px rgba(0, 0, 0, .45), 0 22px 40px -10px rgba(0, 0, 0, .9);
+}
+.tomb-stone::after { content: ""; position: absolute; left: 30%; top: 14%; width: 2px; height: 34%; background: linear-gradient(rgba(0, 0, 0, .55), transparent); transform: rotate(18deg); border-radius: 2px; }
+.tomb-rip { font-family: var(--h-display); font-size: 1.35rem; letter-spacing: .28em; color: #b9b3a3; text-shadow: 0 1px 0 rgba(255, 255, 255, .12), 0 -1px 0 rgba(0, 0, 0, .6); }
+.tomb-code { font-family: var(--h-display); font-size: 3rem; font-weight: 700; line-height: 1; color: #d2cbb9; text-shadow: 0 1px 0 rgba(255, 255, 255, .15), 0 -1px 0 rgba(0, 0, 0, .7); }
+.tomb-ground { position: absolute; left: -10px; right: -10px; bottom: 0; height: 34px; border-radius: 50%; background: radial-gradient(closest-side, #12100f, transparent); }
+[data-costume="haunted"] .error-crypt { text-align: center; }
+[data-costume="haunted"] .error-crypt h1 { font-size: 1.1rem; letter-spacing: .3em; color: var(--h-mist); text-shadow: none; }
+.epitaph { font-family: var(--h-display); font-size: 1.1rem; font-style: italic; color: #e9dcc2; }
+@keyframes rise-ghost { 0%, 100% { transform: translateY(46px); opacity: 0; } 30%, 70% { transform: translateY(-22px); opacity: 1; } }
+
+/* =====================================================================================================
+   9. Page changes dissolve like mist; a machine's code glides from its card into its page
+   ===================================================================================================== */
+@view-transition { navigation: auto; }
+html:not([data-costume="haunted"])::view-transition-group(*),
+html:not([data-costume="haunted"])::view-transition-old(*),
+html:not([data-costume="haunted"])::view-transition-new(*) { animation: none !important; }
+[data-costume="haunted"]::view-transition-old(root) { animation: vt-out .3s ease-in both; }
+[data-costume="haunted"]::view-transition-new(root) { animation: vt-in .42s cubic-bezier(.2, .9, .3, 1) both; }
+[data-costume="haunted"]::view-transition-group(*) { animation-duration: .5s; animation-timing-function: cubic-bezier(.3, 1, .4, 1); }
+@keyframes vt-out { to { opacity: 0; filter: blur(5px); transform: translateY(-6px); } }
+@keyframes vt-in { from { opacity: 0; filter: blur(7px); transform: translateY(8px); } }
+
+/* =====================================================================================================
+   10. Accessibility, print and small screens
+   ===================================================================================================== */
+@media (prefers-reduced-motion: reduce) {
+    @view-transition { navigation: none; }
+    [data-costume="haunted"] *, [data-costume="haunted"] *::before, [data-costume="haunted"] *::after {
+        animation-duration: 1ms !important; animation-delay: 0ms !important; animation-iteration-count: 1 !important; transition-duration: 1ms !important;
+    }
+    [data-costume="haunted"] body::after { display: none; }
+    [data-costume="haunted"] .machine-card.is-restless .peek-ghost { transform: translateY(-21px); }
+}
+@media (prefers-contrast: more) {
+    [data-costume="haunted"] body::after, [data-costume="haunted"] .haunt-atmos { display: none; }
+    [data-costume="haunted"] { --bs-secondary-color: rgba(228, 232, 240, .92); --bs-secondary-rgb: 210, 216, 228; }
+    [data-costume="haunted"] .card { background: #12141c; border-color: rgba(232, 226, 214, .38); }
+}
+@media print {
+    .haunt-atmos, .kiro-companion, .haunt-bat, .boo-ghost, .possession-vignette, .haunt-scene, .spirit-board, .seance, .haunt-controls, .spirit-preview, .spirit-thread { display: none !important; }
+    body::before, body::after { display: none !important; }
+}
+@media (max-width: 767.98px) {
+    .haunt-controls { margin: .5rem 0; flex-wrap: wrap; }
+    [data-costume="haunted"] .kiro-companion { width: 46px; height: 52px; bottom: 12px; }
+    .kc-bubble { display: none; }
+    [data-costume="haunted"] .sb-list { padding-left: .4rem; }
+    [data-costume="haunted"] .sb-planchette { display: none; }
+    [data-costume="haunted"] .login-gate { padding-inline: 1.2rem; border-radius: 160px 160px 18px 18px / 110px 110px 18px 18px; }
+    [data-costume="haunted"] .chat-msg.chat-user { margin-left: 0; }
+}

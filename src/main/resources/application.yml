@@ -113,6 +113,17 @@ bas:
     record-tool-timeout: 30s
     max-argument-chars: 8000
     calls-per-minute: 60
+  # The Kiro assistant page. Each engineer's message runs `kiro-cli chat --agent bas-web-assistant` on this computer
+  # with the Kiro login (and credits) of the user running the app. Kiro's MCP calls use a token for that one run,
+  # limited to the engineer's machines. Needs Kiro CLI, signed in, and the app on port 8080. docs/security.md
+  assistant:
+    enabled: ${BAS_KIRO_ASSISTANT_ENABLED:true}
+    command: ${BAS_KIRO_CLI:kiro-cli}
+    agent: bas-web-assistant
+    workspace: .
+    timeout: 5m
+    max-concurrent-runs: 2
+    max-message-chars: 2000
   # Per-user limits for expensive AI endpoints (requests per minute; bursts up to the same number). 429 + Retry-After.
   rate-limit:
     enabled: true
@@ -120,10 +131,19 @@ bas:
     inspections-per-minute: 20
     predictions-per-minute: 60
     searches-per-minute: 60
+    assistant-messages-per-minute: 5
   risk:
     training-samples: 4000
     random-seed: 42
     prediction-interval: 15m
+  # Stored predictions are deleted after `retention`, and each table keeps at most `max-rows` (oldest removed first).
+  # Failure-risk rows that an investigation or a confirmed failure refers to are always kept. Measured on PostgreSQL:
+  # about 1.8 KB per failure-risk row and 0.5 KB per ML-lab row, indexes included, so at most about 0.46 GB here.
+  predictions:
+    retention: 90d
+    max-rows: 200000
+    ml-retention: 30d
+    ml-max-rows: 200000
 
 logging:
   level:

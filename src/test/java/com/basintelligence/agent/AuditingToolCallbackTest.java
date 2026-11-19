@@ -30,7 +30,7 @@ class AuditingToolCallbackTest {
         when(properties.idlePause()).thenReturn(Duration.ofMinutes(30));
         when(delegate.getToolDefinition()).thenReturn(
                 ToolDefinition.builder().name("createMaintenanceDraft").description("d").inputSchema("{}").build());
-        when(audit.start(isNull(), isNull(), isNull(), eq("kiro-agent"), eq("createMaintenanceDraft"), anyString()))
+        when(audit.start(isNull(), isNull(), isNull(), eq("kiro-agent"), isNull(), eq("createMaintenanceDraft"), anyString()))
                 .thenReturn(42L);
         when(properties.agent()).thenReturn(new BasProperties.Agent(true, Duration.ofMillis(300), Duration.ofSeconds(1), 8000, 60));
         return new AuditingToolCallback(delegate, audit, new ActivityTracker(Clock.systemUTC(), properties),
@@ -73,7 +73,7 @@ class AuditingToolCallbackTest {
     void refusesOversizedArgumentsBeforeRunningTheTool() {
         var callback = callback();
         String huge = "{\"rationale\":\"" + "x".repeat(9000) + "\"}";
-        when(audit.start(isNull(), isNull(), isNull(), eq("kiro-agent"), eq("createMaintenanceDraft"), eq(huge))).thenReturn(43L);
+        when(audit.start(isNull(), isNull(), isNull(), eq("kiro-agent"), isNull(), eq("createMaintenanceDraft"), eq(huge))).thenReturn(43L);
 
         assertThatThrownBy(() -> callback.call(huge)).isInstanceOf(AgentToolPolicy.AgentPolicyViolation.class);
         verify(audit).finish(eq(43L), eq(AgentAuditService.Outcome.DENIED), anyString(), anyLong());

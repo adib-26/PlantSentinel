@@ -64,6 +64,10 @@ public class SecretsCheck {
         if (present(edge) && present(agent) && edge.equals(agent)) {
             problems.add("BAS_EDGE_API_KEY and BAS_AGENT_API_KEY must be different");
         }
+        if (present(agent) && agent.startsWith(com.basintelligence.common.AgentRun.TOKEN_PREFIX)) {
+            problems.add("BAS_AGENT_API_KEY must not start with '" + com.basintelligence.common.AgentRun.TOKEN_PREFIX
+                    + "', which marks the short-lived tokens of Kiro assistant runs");
+        }
         if (relaxed) {
             return problems;
         }

@@ -45,6 +45,9 @@ public class AgentToolPolicy {
             "generateMaintenanceReport", Access.RECORD,
             "createMaintenanceDraft", Access.RECORD);
 
+    /** Tools that Kiro assistant runs (started by the web app for an engineer) may not use. */
+    static final Set<String> NOT_FOR_ASSISTANT_RUNS = Set.of("createMaintenanceDraft");
+
     /** Words that must never appear in an agent tool name. Checked at startup as a second line of defence. */
     static final Set<String> FORBIDDEN_WORDS = Set.of("approve", "reject", "execute", "exec", "shell", "command", "file",
             "credential", "secret", "password", "setpoint", "setting", "control", "write", "delete", "sql");
@@ -75,9 +78,23 @@ public class AgentToolPolicy {
 
     /** Throws {@link AgentPolicyViolation} if the call is not allowed. */
     public void check(String tool, String sessionId, String arguments) {
+        check(tool, sessionId, arguments, false);
+    }
+
+    /**
+     * Throws {@link AgentPolicyViolation} if the call is not allowed.
+     *
+     * @param assistantRun the call comes from a Kiro run that the web app started for an engineer; such runs cannot
+     *                     create maintenance drafts, whatever the Kiro agent file allows
+     */
+    public void check(String tool, String sessionId, String arguments, boolean assistantRun) {
         Access access = TOOLS.get(tool);
         if (access == null) {
             throw new AgentPolicyViolation("Tool '" + tool + "' is not allowed for the agent");
+        }
+        if (assistantRun && NOT_FOR_ASSISTANT_RUNS.contains(tool)) {
+            throw new AgentPolicyViolation("Tool '" + tool + "' is not available to the Kiro assistant in the web app. "
+                    + "The engineer can add a recommendation on the report page instead.");
         }
         if (access == Access.RECORD && !config.recordToolsEnabled()) {
             throw new AgentPolicyViolation("Tool '" + tool + "' is disabled by configuration (bas.agent.record-tools-enabled)");

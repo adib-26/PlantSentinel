@@ -6,7 +6,8 @@ import java.util.UUID;
 /**
  * Which machines the current caller may see. Derived from the caller's roles and factory:
  * <ul>
- * <li>{@link Kind#ALL}: administrators, the Kiro agent and background jobs (no request).</li>
+ * <li>{@link Kind#ALL}: administrators, the Kiro agent with the shared key and background jobs (no request). A Kiro
+ * assistant run gets the scope of the engineer it runs for.</li>
  * <li>{@link Kind#FACTORY}: engineers and viewers, limited to the machines of their factory.</li>
  * <li>{@link Kind#ASSIGNED}: technicians, limited to machines assigned to them (directly or by a work order).</li>
  * <li>{@link Kind#NONE}: anything else, for example a person without a factory. Fails closed.</li>

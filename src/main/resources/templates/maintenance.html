@@ -7,11 +7,13 @@
     <div th:replace="~{fragments :: flash}"></div>
     <h1 class="h3 mb-1">Maintenance management</h1>
     <p class="text-secondary">Recommendations from the pipeline or Kiro become work orders only after an engineer
-        (other than the proposer) approves them.</p>
+        (other than the proposer) approves them.<span class="costume-only"> Every pact needs two witnesses: the one who
+        proposes it and a different one who seals it.</span></p>
 
     <div class="card mb-3" id="pending"><div class="card-body">
         <h2 class="h5">Pending approvals <span class="badge text-bg-warning" th:text="${pending.size()}">1</span></h2>
-        <div th:each="row : ${pending}" th:with="r=${row.recommendation()}" class="border rounded p-2 mb-2">
+        <div th:each="row : ${pending}" th:with="r=${row.recommendation()}" class="border rounded p-2 mb-2 rec rec-PROPOSED">
+            <svg class="rec-seal costume-only" viewBox="0 0 24 24" aria-hidden="true"><use href="#i-seal"/></svg>
             <div class="d-flex flex-wrap justify-content-between gap-2">
                 <div>
                     <span th:replace="~{fragments :: badge(${r.priority()})}"></span>
@@ -24,7 +26,7 @@
             <div class="fw-semibold mt-1" th:text="${r.action()}">action</div>
             <div class="small" th:text="${#strings.abbreviate(r.rationale(), 300)}">rationale</div>
             <form sec:authorize="hasRole('ENGINEER')" th:if="${r.proposedBy() != #authentication.name}"
-                  th:action="@{/recommendations/{id}/review(id=${r.id()})}" method="post" class="d-flex gap-2 mt-2">
+                  th:action="@{/recommendations/{id}/review(id=${r.id()})}" method="post" class="d-flex gap-2 mt-2" data-review>
                 <input type="hidden" name="investigationId" th:value="${row.investigationId()}">
                 <input type="hidden" name="returnTo" value="/maintenance">
                 <input name="comment" class="form-control form-control-sm" maxlength="1000" placeholder="Review comment">
@@ -34,7 +36,7 @@
             <div sec:authorize="hasRole('ENGINEER')" th:if="${r.proposedBy() == #authentication.name}" class="small text-secondary mt-1">
                 You proposed this; another engineer must review it.</div>
         </div>
-        <p th:if="${pending.isEmpty()}" class="text-secondary mb-0">Nothing waiting for approval.</p>
+        <p th:if="${pending.isEmpty()}" class="text-secondary mb-0">Nothing waiting for approval.<span class="costume-only"> No unsealed pacts tonight.</span></p>
     </div></div>
 
     <div class="row g-3 mb-3">

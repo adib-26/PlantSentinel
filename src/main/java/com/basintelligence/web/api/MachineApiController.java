@@ -102,13 +102,19 @@ public class MachineApiController {
 
     @GetMapping("/{code}/risk")
     @com.basintelligence.web.RateLimited(com.basintelligence.web.RateLimited.Kind.PREDICTION)
-    @Operation(summary = "Explainable failure-risk estimate")
+    @Operation(summary = "Explainable failure-risk estimate. Stored as a prediction with trigger API; see "
+            + "/predictions")
     public RiskAssessment risk(@PathVariable String code) {
-        return risk.assess(machines.getByCode(code)).orElseThrow(() -> new NotFoundException("No telemetry yet for " + code));
+        Machine machine = machines.getByCode(code);
+        RiskAssessment assessment = risk.assess(machine)
+                .orElseThrow(() -> new NotFoundException("No telemetry yet for " + code));
+        predictions.record(machine, assessment, PredictionService.Trigger.API, null);
+        return assessment;
     }
 
     @GetMapping("/{code}/predictions")
-    @Operation(summary = "Stored failure-risk predictions with model version and input reference, newest first")
+    @Operation(summary = "Stored failure-risk predictions under the governance field names (predictionId, deviceId, "
+            + "predictionTimestamp, modelName, modelVersion, predictedClass, riskScore, inputReference), newest first")
     public List<PredictionService.Prediction> predictions(@PathVariable String code,
             @RequestParam(defaultValue = "50") @Min(1) @Max(500) int limit) {
         return predictions.recent(machines.getByCode(code).id(), limit);

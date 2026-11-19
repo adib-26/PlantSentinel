@@ -48,6 +48,15 @@ class AgentToolPolicyTest {
     }
 
     @Test
+    void kiroAssistantRunsCannotCreateDraftsButMayReport() {
+        var p = policy(true, 60);
+        assertThatThrownBy(() -> p.check("createMaintenanceDraft", "s", "{}", true))
+                .isInstanceOf(AgentToolPolicy.AgentPolicyViolation.class).hasMessageContaining("Kiro assistant");
+        assertThatCode(() -> p.check("generateMaintenanceReport", "s", "{}", true)).doesNotThrowAnyException();
+        assertThatCode(() -> p.check("createMaintenanceDraft", "s", "{}", false)).doesNotThrowAnyException();
+    }
+
+    @Test
     void startupRefusesUnlistedOrDangerousTools() {
         var p = policy(true, 60);
         assertThatCode(() -> p.verifyPublished(AgentToolPolicy.TOOLS.keySet())).doesNotThrowAnyException();

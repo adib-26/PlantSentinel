@@ -92,19 +92,30 @@ class DashboardScreensIntegrationTest {
     }
 
     @Test
-    void screen4AssistantAndEvidenceTrace() throws Exception {
-        assertThat(page("/assistant", VIEWER)).contains("Investigation history", "INV-" + investigationId,
-                "Two ways to get an answer", "pipeline · engineer");
+    void screen4ReportsAndEvidenceTrace() throws Exception {
+        assertThat(page("/reports", VIEWER)).contains("Generate a report", "How a report is made", "Kiro assistant")
+                .doesNotContain("Report history");
         String inv = page("/investigations/" + investigationId, VIEWER);
         assertThat(inv).contains("Evidence map", "Confidence and limitations", "Tool execution trace", "built-in Java pipeline",
                 "Measured", "Model prediction", "Documented");
         // [E1]-style citations become links, and manual evidence opens the exact document section
         assertThat(inv).contains("<a class=\"cite\" href=\"#E");
         assertThat(inv).containsPattern("href=\"/manuals/\\d+#chunk-\\d+\"");
-        mvc.perform(post("/assistant/ask").with(ENGINEER).with(csrf()).param("question", "Is ui-01 ok?"))
+        mvc.perform(post("/reports").with(ENGINEER).with(csrf()).param("question", "Is ui-01 ok?"))
                 .andExpect(status().is3xxRedirection());
-        mvc.perform(post("/assistant/ask").with(VIEWER).with(csrf()).param("question", "Is UI-01 ok?"))
+        mvc.perform(post("/reports").with(VIEWER).with(csrf()).param("question", "Is UI-01 ok?"))
                 .andExpect(status().isForbidden());
+    }
+
+    @Test
+    void kiroAssistantPageSaysWhenKiroIsUnavailable() throws Exception {
+        // the test profile switches the assistant off; KiroAssistantScenarioIntegrationTest runs it with a fake Kiro
+        assertThat(page("/assistant", ENGINEER)).contains("Kiro assistant", "not available", "switched off",
+                "Conversations");
+        assertThat(page("/assistant", VIEWER)).contains("Only engineers can talk to Kiro");
+        mvc.perform(post("/assistant/messages").with(ENGINEER).with(csrf()).param("message", "Is UI-01 ok?"))
+                .andExpect(status().is3xxRedirection())
+                .andExpect(r -> assertThat(r.getFlashMap().get("flashError")).asString().contains("not available"));
     }
 
     @Test

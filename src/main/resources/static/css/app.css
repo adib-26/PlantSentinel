@@ -24,3 +24,9 @@ a.cite { font-weight: 600; text-decoration: none; background: var(--bs-warning-b
 .trace-step.status-SUCCESS { border-left-color: var(--bs-success); }
 .navbar .nav-link.active { font-weight: 600; }
 .table-scroll { max-height: 26rem; overflow: auto; }
+.chat-msg { border-left: 3px solid var(--bs-secondary-border-subtle); padding-left: .75rem; }
+.chat-msg.chat-user { border-left-color: var(--bs-primary); }
+.chat-msg.chat-kiro { border-left-color: var(--bs-warning); }
+.chat-text { white-space: pre-wrap; }
+.chat-reply { white-space: pre-wrap; font-size: .95rem; line-height: 1.55; }
+.chat-reply table { white-space: normal; }

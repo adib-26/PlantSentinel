@@ -27,7 +27,7 @@ public class AgentAuditService {
     }
 
     public record ToolCall(long id, String sessionId, String principal, String toolName, String argumentsJson,
-            String status, String errorMessage, Long durationMs, Instant calledAt) {
+            String status, String errorMessage, Long durationMs, Instant calledAt, String onBehalfOf) {
     }
 
     public record AgentSession(String id, String principal, String clientName, String clientVersion, Instant startedAt,
@@ -42,29 +42,36 @@ public class AgentAuditService {
         this.clock = clock;
     }
 
+    /**
+     * @param run the Kiro assistant run this call belongs to, or null for a call with the shared agent key
+     */
     @Transactional(propagation = Propagation.REQUIRES_NEW)
-    public long start(String sessionId, String clientName, String clientVersion, String principal, String tool,
-            String argumentsJson) {
+    public long start(String sessionId, String clientName, String clientVersion, String principal,
+            com.basintelligence.common.AgentRun run, String tool, String argumentsJson) {
         Instant now = clock.instant();
+        String onBehalfOf = run == null ? null : run.username();
         if (sessionId != null) {
             int updated = jdbc.sql("""
                     UPDATE agent_sessions SET last_seen_at = :now, tool_calls = tool_calls + 1 WHERE id = :id""")
                     .param("now", utc(now)).param("id", sessionId).update();
             if (updated == 0) {
                 jdbc.sql("""
-                        INSERT INTO agent_sessions (id, principal, client_name, client_version, started_at, last_seen_at, tool_calls)
-                        VALUES (:id, :principal, :client, :version, :now, :now, 1)""")
+                        INSERT INTO agent_sessions (id, principal, client_name, client_version, started_at, last_seen_at,
+                            tool_calls, on_behalf_of)
+                        VALUES (:id, :principal, :client, :version, :now, :now, 1, :onBehalfOf)""")
                         .param("id", Text.truncate(sessionId, 100)).param("principal", principal)
                         .param("client", Text.truncate(clientName, 120)).param("version", Text.truncate(clientVersion, 60))
-                        .param("now", utc(now)).update();
+                        .param("now", utc(now)).param("onBehalfOf", onBehalfOf).update();
             }
         }
         var keys = new GeneratedKeyHolder();
         jdbc.sql("""
-                INSERT INTO agent_tool_audit (session_id, principal, tool_name, arguments_json, status, called_at)
-                VALUES (:session, :principal, :tool, :args, 'RUNNING', :at)""")
+                INSERT INTO agent_tool_audit (session_id, principal, tool_name, arguments_json, status, called_at,
+                    on_behalf_of, assistant_message_id)
+                VALUES (:session, :principal, :tool, :args, 'RUNNING', :at, :onBehalfOf, :message)""")
                 .param("session", sessionId).param("principal", principal).param("tool", tool)
                 .param("args", Text.truncate(argumentsJson, 2000)).param("at", utc(now))
+                .param("onBehalfOf", onBehalfOf).param("message", run == null ? null : run.assistantMessageId())
                 .update(keys, "id");
         return keys.getKey().longValue();
     }
@@ -77,11 +84,13 @@ public class AgentAuditService {
     }
 
     public List<ToolCall> recentCalls(int limit) {
-        return jdbc.sql("SELECT * FROM agent_tool_audit ORDER BY id DESC LIMIT :l").param("l", limit)
-                .query((rs, n) -> new ToolCall(rs.getLong("id"), rs.getString("session_id"), rs.getString("principal"),
-                        rs.getString("tool_name"), rs.getString("arguments_json"), rs.getString("status"),
-                        rs.getString("error_message"), rs.getObject("duration_ms", Long.class), instant(rs, "called_at")))
-                .list();
+        return jdbc.sql("SELECT * FROM agent_tool_audit ORDER BY id DESC LIMIT :l").param("l", limit).query(MAPPER).list();
+    }
+
+    /** The MCP tool calls one Kiro assistant run made, oldest first. */
+    public List<ToolCall> callsForAssistantMessage(long messageId) {
+        return jdbc.sql("SELECT * FROM agent_tool_audit WHERE assistant_message_id = :m ORDER BY id")
+                .param("m", messageId).query(MAPPER).list();
     }
 
     /**
@@ -111,7 +120,7 @@ public class AgentAuditService {
     private static final org.springframework.jdbc.core.RowMapper<ToolCall> MAPPER = (rs, n) -> new ToolCall(rs.getLong("id"),
             rs.getString("session_id"), rs.getString("principal"), rs.getString("tool_name"), rs.getString("arguments_json"),
             rs.getString("status"), rs.getString("error_message"), rs.getObject("duration_ms", Long.class),
-            instant(rs, "called_at"));
+            instant(rs, "called_at"), rs.getString("on_behalf_of"));
 
     public List<AgentSession> recentSessions(int limit) {
         return jdbc.sql("SELECT * FROM agent_sessions ORDER BY last_seen_at DESC LIMIT :l").param("l", limit)

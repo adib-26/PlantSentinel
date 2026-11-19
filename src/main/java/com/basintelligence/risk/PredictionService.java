@@ -19,12 +19,15 @@ import org.springframework.stereotype.Service;
 
 import com.basintelligence.analytics.CriticalAnomalyDetected;
 import com.basintelligence.common.ActivityTracker;
+import com.basintelligence.common.BasMetrics;
+import com.basintelligence.common.IdWindows;
 import com.basintelligence.common.NotFoundException;
 import com.basintelligence.config.BasProperties;
 import com.basintelligence.machine.Machine;
 import com.basintelligence.machine.MachineService;
 import com.basintelligence.telemetry.TelemetryReading;
 import com.basintelligence.telemetry.TelemetryService;
+import com.fasterxml.jackson.annotation.JsonProperty;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -40,14 +43,28 @@ public class PredictionService {
     private static final Logger log = LoggerFactory.getLogger(PredictionService.class);
     private static final TypeReference<List<RiskAssessment.Contribution>> CONTRIBUTIONS = new TypeReference<>() {
     };
+    /** Retention never deletes a prediction that an investigation or a confirmed failure refers to. */
+    private static final String UNREFERENCED = """
+            NOT EXISTS (SELECT 1 FROM investigations i WHERE i.prediction_id = model_predictions.id)
+            AND NOT EXISTS (SELECT 1 FROM failure_events f WHERE f.prior_prediction_id = model_predictions.id)""";
 
-    public enum Trigger {
-        SCHEDULED, ANOMALY, INVESTIGATION, AGENT
+    private record Ids(Long first, Long last) {
     }
 
-    public record Prediction(long id, UUID machineId, Long anomalyEventId, Instant predictedAt, Trigger trigger,
-            double probability, RiskLevel level, int readingsUsed, String modelName, String modelVersion,
-            String inputReference) {
+    private static Ids ids(java.sql.ResultSet rs, int row) throws java.sql.SQLException {
+        return new Ids(rs.getObject("first_id", Long.class), rs.getObject("last_id", Long.class));
+    }
+
+    /** {@code API}: a caller of {@code GET /api/machines/{code}/risk}. */
+    public enum Trigger {
+        SCHEDULED, ANOMALY, INVESTIGATION, AGENT, API
+    }
+
+    /** In JSON, the fields carry the governance names used by the {@code prediction_governance} view. */
+    public record Prediction(@JsonProperty("predictionId") long id, @JsonProperty("deviceId") UUID machineId,
+            Long anomalyEventId, @JsonProperty("predictionTimestamp") Instant predictedAt, Trigger trigger,
+            @JsonProperty("riskScore") double probability, @JsonProperty("predictedClass") RiskLevel level,
+            int readingsUsed, String modelName, String modelVersion, String inputReference) {
     }
 
     private final JdbcClient jdbc;
@@ -121,6 +138,66 @@ public class PredictionService {
                 log.warn("Scheduled prediction failed for {}: {}", m.code(), e.getMessage());
             }
         }
+    }
+
+    /**
+     * Deletes predictions older than {@code bas.predictions.retention}, then the oldest beyond
+     * {@code bas.predictions.max-rows}. Rows an investigation or a confirmed failure refers to are kept: they are the
+     * evidence that record was based on, and the failure's link is how predictions are checked against reality.
+     * Runs hourly while the app is in use.
+     */
+    @Scheduled(initialDelayString = "PT3M", fixedDelayString = "PT1H")
+    public void applyRetention() {
+        if (activity.isIdle()) {
+            return;
+        }
+        deleteOlderThan(clock.instant().minus(properties.predictions().retention()));
+        enforceRowLimit();
+    }
+
+    /** Deletes the unreferenced predictions made before {@code cutoff} and returns how many. */
+    public int deleteOlderThan(Instant cutoff) {
+        var c = utc(cutoff);
+        Ids old = jdbc.sql("SELECT MIN(id) AS first_id, MAX(id) AS last_id FROM model_predictions WHERE predicted_at < :c AND "
+                + UNREFERENCED).param("c", c).query(PredictionService::ids).single();
+        int removed = IdWindows.delete(old.first(), old.last(), (from, to) -> jdbc.sql(
+                "DELETE FROM model_predictions WHERE id BETWEEN :from AND :to AND predicted_at < :c AND " + UNREFERENCED)
+                .param("from", from).param("to", to).param("c", c).update());
+        if (removed > 0) {
+            meters.counter(BasMetrics.PREDICTIONS_REMOVED, "table", "model_predictions", "reason", "retention")
+                    .increment(removed);
+            log.info("Retention removed {} model_predictions rows older than {}", removed,
+                    properties.predictions().retention());
+        }
+        return removed;
+    }
+
+    /**
+     * Deletes the oldest unreferenced predictions beyond {@code bas.predictions.max-rows} and returns how many. Writes
+     * are one row per call, so an hourly check keeps the table close to the limit.
+     */
+    public int enforceRowLimit() {
+        int max = properties.predictions().maxRows();
+        long rows = jdbc.sql("SELECT COUNT(*) FROM model_predictions").query(Long.class).single();
+        if (rows <= max) {
+            return 0;
+        }
+        Ids candidates = jdbc.sql("SELECT MIN(id) AS first_id, MAX(id) AS last_id FROM model_predictions WHERE "
+                + UNREFERENCED).query(PredictionService::ids).single();
+        // the (rows - max)-th oldest unreferenced row: it and every older unreferenced row go
+        Long last = jdbc.sql("SELECT id FROM model_predictions WHERE " + UNREFERENCED + " ORDER BY id LIMIT 1 OFFSET :skip")
+                .param("skip", rows - max - 1).query(Long.class).optional().orElse(candidates.last());
+        int removed = IdWindows.delete(candidates.first(), last, (from, to) -> jdbc.sql(
+                "DELETE FROM model_predictions WHERE id BETWEEN :from AND :to AND " + UNREFERENCED)
+                .param("from", from).param("to", to).update());
+        if (removed > 0) {
+            meters.counter(BasMetrics.PREDICTIONS_REMOVED, "table", "model_predictions", "reason", "row_limit")
+                    .increment(removed);
+            log.warn("model_predictions reached its limit of {} rows and removed the oldest {} before their {} "
+                    + "retention ended. Raise bas.predictions.max-rows; metric {} counts every removal.", max, removed,
+                    properties.predictions().retention(), BasMetrics.PREDICTIONS_REMOVED);
+        }
+        return removed;
     }
 
     /** Newest first. */

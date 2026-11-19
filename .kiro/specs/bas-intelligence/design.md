@@ -38,7 +38,7 @@ A single Spring Boot 3.5 application (Java 21) runs on the engineer's laptop. Op
 | Multivariate anomaly | Isolation Forest fitted per request on the window's earlier 60% | Global model | Adapts to each machine's own normal behaviour; no training pipeline needed. |
 | Vision | Fixed-weight ONNX CNN (blur → Laplacian → pooling → logistic) + OpenCV contours | Pretrained classifier | Runs anywhere, no dataset or GPU, documents the ONNX contract. A trained model can be swapped in without code changes. |
 | Persistence | JdbcClient + Flyway, portable SQL | JPA | Explicit SQL, low memory, works on both H2 (offline demo) and Neon PostgreSQL. |
-| Images | Local disk | Database BYTEA | Keeps Neon free-tier storage (0.5 GB) for structured data. |
+| Images | Local disk | Database BYTEA | Keeps Neon free-tier storage (1 GB per project since October 2026) for structured data. |
 
 ## Agent design
 

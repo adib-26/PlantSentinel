@@ -9,33 +9,49 @@
         <div>
             <h1 class="h3 mb-0" th:text="${factory.name()}">Plant</h1>
             <small class="text-secondary" th:text="${factory.code() + ' · ' + (factory.location() ?: '')}">code</small>
+            <div class="night-watch costume-only"
+                 th:classappend="${criticalAlerts > 0} ? 'is-alarm' : (${attention > 0} ? 'is-uneasy' : '')">
+                <svg class="hi" aria-hidden="true"><use href="#i-candle"/></svg>
+                <span th:if="${criticalAlerts > 0}"
+                      th:text="${'Something stirs: ' + criticalAlerts + ' critical alert' + (criticalAlerts == 1 ? '' : 's') + ' in the last hour.'}">alarm</span>
+                <span th:if="${criticalAlerts == 0 and attention > 0}"
+                      th:text="${attention == 1 ? '1 machine is restless tonight: its card glows and flickers below.' : attention + ' machines are restless tonight: their cards glow and flicker below.'}">uneasy</span>
+                <span th:if="${criticalAlerts == 0 and attention == 0}">All quiet. Every machine is resting easy.</span>
+            </div>
         </div>
         <a sec:authorize="hasRole('ENGINEER')" class="btn btn-primary" th:href="@{/machines/new}">Register machine</a>
     </div>
 
     <div class="row g-3 mb-3">
-        <div class="col-6 col-lg-2"><div class="card h-100"><div class="card-body">
+        <div class="col-6 col-lg-2"><div class="card h-100 kpi-card"><div class="card-body">
+            <svg class="kpi-ico costume-only" aria-hidden="true"><use href="#i-factory"/></svg>
             <div class="kpi-label">Registered machines</div><div class="kpi" th:text="${total}">4</div>
         </div></div></div>
-        <div class="col-6 col-lg-2"><div class="card h-100"><div class="card-body">
+        <div class="col-6 col-lg-2"><div class="card h-100 kpi-card kpi-calm"><div class="card-body">
+            <svg class="kpi-ico costume-only" aria-hidden="true"><use href="#i-moon"/></svg>
             <div class="kpi-label">Operating normally</div><div class="kpi text-success" th:text="${normal}">2</div>
         </div></div></div>
-        <div class="col-6 col-lg-2"><div class="card h-100"><div class="card-body">
+        <div class="col-6 col-lg-2"><div class="card h-100 kpi-card" th:classappend="${attention > 0} ? 'kpi-alarm'"><div class="card-body">
+            <svg class="kpi-ico costume-only" aria-hidden="true"><use href="#i-ghost"/></svg>
             <div class="kpi-label">Need attention</div><div class="kpi text-warning" th:text="${attention}">2</div>
             <div class="small text-secondary">health, risk ≥ HIGH or data not live</div>
         </div></div></div>
-        <div class="col-6 col-lg-2"><div class="card h-100"><div class="card-body">
+        <div class="col-6 col-lg-2"><div class="card h-100 kpi-card" th:classappend="${criticalAlerts > 0} ? 'kpi-critical' : (${alertCount > 0} ? 'kpi-alarm' : '')"><div class="card-body">
+            <svg class="kpi-ico costume-only" aria-hidden="true"><use href="#i-candle"/></svg>
             <div class="kpi-label">Active alerts (1 h)</div><div class="kpi" th:classappend="${criticalAlerts > 0} ? 'text-danger'" th:text="${alertCount}">3</div>
             <div class="small text-secondary" th:text="${criticalAlerts + ' critical'}">0 critical</div>
         </div></div></div>
-        <div class="col-6 col-lg-2"><div class="card h-100"><div class="card-body">
+        <div class="col-6 col-lg-2"><div class="card h-100 kpi-card" th:classappend="${pendingReviews > 0} ? 'kpi-alarm'"><div class="card-body">
+            <svg class="kpi-ico costume-only" aria-hidden="true"><use href="#i-seal"/></svg>
             <div class="kpi-label">Awaiting approval</div><div class="kpi" th:text="${pendingReviews}">1</div>
             <a class="small" th:href="@{/maintenance}">open maintenance</a>
+            <div class="small text-secondary costume-only">a second engineer must seal each one</div>
         </div></div></div>
-        <div class="col-6 col-lg-2"><div class="card h-100"><div class="card-body">
+        <div class="col-6 col-lg-2"><div class="card h-100 kpi-card"><div class="card-body">
+            <svg class="kpi-ico costume-only" aria-hidden="true"><use href="#i-orb"/></svg>
             <div class="kpi-label">Mean failure risk</div>
-            <div class="kpi" th:text="${@fmt.pct(riskSummary.meanProbability())}">20%</div>
-            <div class="small text-secondary" th:if="${riskSummary.highest() != null}"
+            <div class="kpi" data-live="mean" th:text="${@fmt.pct(riskSummary.meanProbability())}">20%</div>
+            <div class="small text-secondary" data-live="highest" th:if="${riskSummary.highest() != null}"
                  th:text="${'highest ' + riskSummary.highest().machine().code() + ' ' + @fmt.pct(riskSummary.highest().risk().get().probability())}">h</div>
         </div></div></div>
     </div>
@@ -43,31 +59,48 @@
     <div class="row g-3 mb-3">
         <div class="col-xl-8">
             <div class="row g-3">
-                <div class="col-md-6" th:each="card : ${cards}">
-                    <a class="text-decoration-none text-body" th:href="@{/machines/{code}(code=${card.machine().code()})}">
-                        <div class="card machine-card h-100" th:classappend="'tone-' + ${@fmt.tone(card.machine().healthStatus())}">
+                <div class="col-md-6" th:each="card : ${cards}"
+                     th:with="prob=${card.risk().isPresent() ? card.risk().get().probability() : 0.0},
+                              lvl=${card.risk().isPresent() ? card.risk().get().level().name() : 'NONE'},
+                              health=${card.machine().healthStatus() == null ? 'UNKNOWN' : card.machine().healthStatus().name()},
+                              conn=${card.quality().connectivity().name()}">
+                    <a class="text-decoration-none text-body machine-link" th:href="@{/machines/{code}(code=${card.machine().code()})}">
+                        <div class="card machine-card h-100"
+                             th:classappend="${'tone-' + @fmt.tone(card.machine().healthStatus()) + ' risk-' + lvl + ' conn-' + conn
+                                 + ((health == 'WARNING' or health == 'CRITICAL' or lvl == 'HIGH' or lvl == 'CRITICAL') ? ' is-restless' : '')
+                                 + ((health == 'CRITICAL' or lvl == 'CRITICAL') ? ' is-possessed' : '')}"
+                             th:style="${'--risk:' + @fmt.share(prob)}">
+                            <span class="aura" aria-hidden="true"></span>
+                            <span class="peek costume-only" aria-hidden="true"><svg class="peek-ghost" viewBox="0 0 64 72"><use href="#g-kiro"/></svg></span>
                             <div class="card-body">
                                 <div class="d-flex justify-content-between">
-                                    <h2 class="h5 mb-0" th:text="${card.machine().code()}">CNC-01</h2>
+                                    <h2 class="h5 mb-0" th:text="${card.machine().code()}"
+                                        th:style="${'view-transition-name:mc-' + card.machine().code()}">CNC-01</h2>
                                     <span>
                                         <span th:replace="~{fragments :: badge(${card.machine().healthStatus()})}"></span>
                                         <span th:replace="~{fragments :: badge(${card.quality().connectivity()})}"></span>
                                     </span>
                                 </div>
                                 <div class="text-secondary small mb-2" th:text="${card.machine().name() + ' · ' + card.machine().type().displayName() + ' · ' + (card.machine().location() ?: '')}">name</div>
-                                <div class="d-flex justify-content-between align-items-end">
+                                <div class="d-flex justify-content-between align-items-end fadeable">
                                     <div>
                                         <div class="small text-secondary">Failure risk <span class="badge text-bg-light border">model</span></div>
                                         <div th:if="${card.risk().isPresent()}">
                                             <span class="metric-value" th:text="${@fmt.pct(card.risk().get().probability())}">12%</span>
                                             <span th:replace="~{fragments :: badge(${card.risk().get().level()})}"></span>
                                         </div>
+                                        <div class="haunt-meter" th:if="${card.risk().isPresent()}" aria-hidden="true"><span th:style="'width:' + ${@fmt.share(prob)} + '%'"></span></div>
                                         <div th:unless="${card.risk().isPresent()}" class="text-secondary">no data</div>
                                     </div>
                                     <div class="text-end small">
-                                        <div th:text="${card.anomalies24h() + ' anomalies / 24 h'}">0</div>
+                                        <div><svg class="hi apparition-ico costume-only" th:if="${card.anomalies24h() > 0}" aria-hidden="true"><use href="#i-ghost"/></svg>
+                                            <span th:text="${card.anomalies24h() + ' anomalies / 24 h'}">0</span></div>
                                         <div class="text-secondary" th:text="${'data ' + @fmt.pct(card.quality().completeness()) + ' complete · ' + @fmt.ago(card.machine().lastSeenAt())}">q</div>
                                     </div>
+                                </div>
+                                <div class="gone-quiet costume-only" th:if="${conn != 'ONLINE'}">
+                                    <svg class="hi" aria-hidden="true"><use href="#i-moon"/></svg>
+                                    <span th:text="${conn == 'OFFLINE' ? 'Gone silent: no live readings. Cobwebs are growing.' : 'Going quiet: readings are late.'}">quiet</span>
                                 </div>
                             </div>
                         </div>
@@ -82,23 +115,49 @@
             <div class="card mb-3"><div class="card-body">
                 <h2 class="h5">Factory risk summary</h2>
                 <p class="small text-secondary mb-2" th:text="${riskSummary.assessed() + ' machines assessed by the failure-risk model'}">x</p>
+                <div class="emf" th:style="'--mean:' + ${@fmt.share(riskSummary.meanProbability())}">
+                    <svg class="emf-dial" viewBox="0 0 220 124" aria-hidden="true">
+                        <path class="emf-zone z1" d="M18 112A92 92 0 0 1 42.5 49.4"/><path class="emf-zone z2" d="M47.4 44.5A92 92 0 0 1 106.5 20.1"/>
+                        <path class="emf-zone z3" d="M113.5 20.1A92 92 0 0 1 172.6 44.5"/><path class="emf-zone z4" d="M177.5 49.4A92 92 0 0 1 202 112"/>
+                        <path class="emf-ticks" d="M40 112L29 112M39.6 89.1L33 87M50.1 68.5L44.5 64.4M66.5 52.1L62.4 46.5M87.1 41.6L85 35M110 42L110 31M132.9 41.6L135 35M153.5 52.1L157.6 46.5M169.9 68.5L175.5 64.4M180.4 89.1L187 87M180 112L191 112"/>
+                        <text class="emf-scale" x="29" y="123">0</text><text class="emf-scale" x="191" y="123" text-anchor="end">100</text>
+                        <g class="emf-needle"><g class="emf-jitter"><path d="M110 112 110 38"/></g></g>
+                        <circle class="emf-hub" cx="110" cy="112" r="6.5"/>
+                    </svg>
+                    <div class="emf-readout">
+                        <span class="emf-value" data-live="emf-value" th:text="${@fmt.pct(riskSummary.meanProbability())}">23%</span>
+                        <span class="emf-caption">mean failure risk<span class="costume-only"> · spirit activity</span></span>
+                        <span class="live-stamp" data-live="stamp" aria-live="off"><span class="live-dot" aria-hidden="true"></span>as of page load</span>
+                    </div>
+                    <div class="emf-leds" role="group" aria-label="Machines by failure risk">
+                        <a th:each="card : ${cards}" class="emf-led"
+                           th:with="prob=${card.risk().isPresent() ? card.risk().get().probability() : 0.0},
+                                    lvl=${card.risk().isPresent() ? card.risk().get().level().name() : 'NONE'}"
+                           th:classappend="'risk-' + ${lvl}" th:style="'--risk:' + ${@fmt.share(prob)}"
+                           th:href="@{/machines/{code}(code=${card.machine().code()})}"
+                           th:title="${card.machine().code() + ' · ' + (card.risk().isPresent() ? @fmt.pct(prob) + ' ' + lvl : 'no risk data')}"><span
+                                class="visually-hidden" th:text="${card.machine().code() + ' · failure risk ' + (card.risk().isPresent() ? @fmt.pct(prob) + ' ' + lvl : 'not assessed')}">CNC-01</span></a>
+                    </div>
+                </div>
                 <div th:each="l : ${riskSummary.byLevel()}" class="d-flex align-items-center gap-2 mb-1 small">
                     <span class="badge" style="width:5.5rem" th:classappend="'text-bg-' + ${@fmt.tone(l.key)}" th:text="${l.key}">LOW</span>
                     <div class="flex-grow-1 bar-track"><div class="bar" th:style="'width:' + ${@fmt.share(riskSummary.assessed() == 0 ? 0.0 : l.value * 1.0 / riskSummary.assessed())} + '%'"></div></div>
                     <span style="width:1.5rem" class="text-end" th:text="${l.value}">1</span>
                 </div>
                 <a class="small" th:href="@{/analytics}">Open predictive analytics</a>
+                <div class="live-note small mt-2" data-live="note" role="status" hidden></div>
             </div></div>
             <div class="card"><div class="card-body">
                 <h2 class="h5">Active anomaly alerts</h2>
-                <ul class="list-unstyled small mb-0">
-                    <li th:each="a : ${alerts}" class="mb-1">
+                <ul class="list-unstyled small mb-0 alert-list">
+                    <li th:each="a : ${alerts}" class="mb-1" th:classappend="'sev-' + ${a.event().severity()}">
+                        <svg class="hi apparition-ico costume-only" aria-hidden="true"><use href="#i-ghost"/></svg>
                         <span th:replace="~{fragments :: badge(${a.event().severity()})}"></span>
                         <a th:href="@{/machines/{c}(c=${a.machineCode()})}" th:text="${a.machineCode()}">CNC-01</a>
                         <span th:text="${a.event().message()}">msg</span>
                         <span class="text-secondary" th:text="${'· ' + @fmt.ago(a.event().detectedAt())}">t</span>
                     </li>
-                    <li th:if="${alerts.isEmpty()}" class="text-secondary">No anomalies in the last hour.</li>
+                    <li th:if="${alerts.isEmpty()}" class="text-secondary">No anomalies in the last hour.<span class="costume-only"> No apparitions tonight.</span></li>
                 </ul>
             </div></div>
         </div>
@@ -138,7 +197,7 @@
                     </tr>
                     </tbody>
                 </table>
-                <p th:if="${investigations.isEmpty()}" class="text-secondary mb-0">None yet. Ask the <a th:href="@{/assistant}">Kiro assistant</a>.</p>
+                <p th:if="${investigations.isEmpty()}" class="text-secondary mb-0">None yet. Generate a <a th:href="@{/reports}">report</a> or ask the <a th:href="@{/assistant}">Kiro assistant</a>.</p>
             </div></div>
         </div>
     </div>
