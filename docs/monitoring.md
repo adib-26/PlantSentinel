@@ -80,8 +80,9 @@ Prometheus plus Grafana adds roughly 300–500 MB of RAM, so start them only whe
 Every model prediction is stored: failure risk in `model_predictions` (scheduled, anomaly-triggered,
 investigation, agent, or a `GET /api/machines/{code}/risk` call), visual inspection in `inspections`, and the
 ML-lab endpoints (`POST /api/ml/*`) in `ml_predictions`. The view `prediction_governance` (migrations V15, V16)
-lists all three under the governance field names. Its key is (`source_table`, `prediction_id`). Only the dashboard,
-machine and analytics pages compute risk without storing it, because every page load would add a row per machine.
+lists all three under the governance field names. Its key is (`source_table`, `prediction_id`). Only the dashboard
+(including its 30-second refresh, `GET /overview.json`, and the Kiro ghost's `GET /machines.json`), machine and
+analytics pages compute risk without storing it, because every page load or refresh would add a row per machine.
 
 | Field | Failure risk (`model_predictions`) | Visual inspection (`inspections`) |
 |---|---|---|

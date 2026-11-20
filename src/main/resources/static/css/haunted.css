@@ -98,7 +98,24 @@ html:not([data-costume="haunted"]) .costume-only { display: none !important; }
 .live-stamp { display: inline-flex; align-items: center; gap: .35rem; margin-top: .2rem; font-size: .68rem; color: var(--bs-secondary-color); }
 .live-stamp .live-dot { width: .45rem; height: .45rem; border-radius: 50%; background: #adb5bd; }
 .live-stamp.is-live .live-dot { background: #198754; animation: live-pulse 2s ease-in-out infinite; }
-.live-note { padding: .45rem .6rem; border-radius: .5rem; border: 1px solid rgba(255, 193, 7, .5); background: rgba(255, 193, 7, .12); }
+.live-stamp.is-stale .live-dot { background: #e0a800; }
+/* the overview's change log under the machine cards: one line per change since the page opened, newest first */
+.row > .live-log:not(.has-entries) { margin-top: 0; }
+.live-log.has-entries .live-log-panel { padding: .75rem 1rem .85rem; border-radius: .375rem; background: var(--bs-body-bg); box-shadow: 0 1px 3px rgba(0, 0, 0, .08); }
+.live-log-head { display: flex; align-items: center; gap: .4rem; margin-bottom: .45rem; font-size: .72rem; font-weight: 600; text-transform: uppercase; letter-spacing: .08em; color: var(--bs-secondary-color); }
+.live-log-list { list-style: none; margin: 0; padding: 0; font-size: .8rem; line-height: 1.4; }
+.live-log-list li { --lt: 173, 181, 189; display: flex; align-items: baseline; gap: .45rem; padding: .22rem .45rem; border-radius: .4rem; border-left: 3px solid rgb(var(--lt)); background: rgba(var(--lt), .07); }
+.live-log-list li + li { margin-top: .25rem; }
+.live-log-list time { flex-shrink: 0; font-variant-numeric: tabular-nums; color: var(--bs-secondary-color); }
+.live-log-list .hi { align-self: center; color: rgb(var(--lt)); }
+.live-log-list .lt-success { --lt: 25, 135, 84; }
+.live-log-list .lt-warning { --lt: 224, 168, 0; }
+.live-log-list .lt-danger { --lt: 220, 53, 69; }
+.live-log-list .lt-info { --lt: 13, 110, 253; }
+.live-log-list li.is-new, .alert-list li.is-new { animation: log-in 1.6s ease-out; }
+.kpi.is-changed { animation: kpi-changed 1.4s ease-out; }
+@keyframes log-in { from { background-color: rgba(13, 110, 253, .16); } }
+@keyframes kpi-changed { from { color: #0d6efd; } }
 .haunt-meter > span { transition: width 1s ease-out; }
 .machine-card .metric-value { transition: color .6s, text-shadow .6s; }
 .machine-card.is-updated { animation: card-updated 1.4s ease-out; }
@@ -538,13 +555,13 @@ mark.ink { padding: 0 .12em; border-radius: .2em; background: rgba(255, 193, 7, 
     background-image: linear-gradient(90deg, #5be3a8, #ffb84d 40%, #ff7e24 62%, #ff4d5e);
     box-shadow: 0 0 10px rgba(var(--aura), .85);
 }
-[data-costume="haunted"] .machine-card.conn-STALE, [data-costume="haunted"] .machine-card.conn-OFFLINE {
+[data-costume="haunted"] .machine-card.conn-STALE, [data-costume="haunted"] .machine-card.conn-OFFLINE, [data-costume="haunted"] .machine-card.conn-NO_DATA {
     background-image: var(--h-cobweb), linear-gradient(180deg, rgba(27, 31, 45, .82), rgba(14, 16, 25, .86));
     background-repeat: no-repeat; background-position: top right, 0 0; background-size: 86px 86px, auto;
 }
-[data-costume="haunted"] .machine-card.conn-OFFLINE { background-size: 128px 128px, auto; }
+[data-costume="haunted"] .machine-card.conn-OFFLINE, [data-costume="haunted"] .machine-card.conn-NO_DATA { background-size: 128px 128px, auto; }
 [data-costume="haunted"] .machine-card.conn-STALE .fadeable { opacity: .72; filter: saturate(.4); }
-[data-costume="haunted"] .machine-card.conn-OFFLINE .fadeable { opacity: .6; filter: grayscale(1); }
+[data-costume="haunted"] .machine-card.conn-OFFLINE .fadeable, [data-costume="haunted"] .machine-card.conn-NO_DATA .fadeable { opacity: .6; filter: grayscale(1); }
 .gone-quiet { display: flex; align-items: center; gap: .4rem; margin-top: .55rem; font-size: .78rem; font-style: italic; color: #cfd4e0; }
 .gone-quiet .hi { color: #c4b5fd; }
 .apparition-ico { color: #c3d8ff; filter: drop-shadow(0 0 5px rgba(var(--h-ghost), .9)); animation: haunt-fade 3.4s ease-in-out infinite; }
@@ -580,7 +597,23 @@ mark.ink { padding: 0 .12em; border-radius: .2em; background: rgba(255, 193, 7, 
 @keyframes led-throb { 0%, 100% { filter: brightness(1); } 50% { filter: brightness(1.5); } }
 [data-costume="haunted"] .machine-card.is-updated { animation: card-updated-h 1.6s ease-out; }
 [data-costume="haunted"] .live-stamp.is-live .live-dot { background: #5be3a8; box-shadow: 0 0 8px rgba(var(--h-calm), .9); animation: haunt-fade 2s ease-in-out infinite; }
-[data-costume="haunted"] .live-note { border-color: rgba(var(--h-candle), .45); background: rgba(var(--h-candle), .1); color: #ffe2b8; }
+[data-costume="haunted"] .live-stamp.is-stale .live-dot { background: #ffb84d; box-shadow: 0 0 8px rgba(var(--h-candle), .9); }
+[data-costume="haunted"] .live-log.has-entries .live-log-panel {
+    background: linear-gradient(180deg, rgba(27, 31, 45, .82), rgba(14, 16, 25, .86)); border: 1px solid rgba(var(--h-candle), .2); border-radius: 14px;
+    box-shadow: inset 0 1px 0 rgba(255, 255, 255, .035), 0 24px 48px -30px rgba(0, 0, 0, .95), 0 0 34px -20px rgba(var(--h-candle), .7);
+}
+[data-costume="haunted"] .live-log-head { color: #e9dcc2; font-family: var(--h-display); letter-spacing: .1em; }
+[data-costume="haunted"] .live-log-head .hi { color: rgb(var(--h-candle)); filter: drop-shadow(0 0 5px rgba(255, 140, 40, .8)); }
+[data-costume="haunted"] .live-log-list li { --lt: 148, 163, 184; background: rgba(var(--lt), .06); }
+[data-costume="haunted"] .live-log-list .lt-success { --lt: var(--h-calm); }
+[data-costume="haunted"] .live-log-list .lt-warning { --lt: var(--h-candle); }
+[data-costume="haunted"] .live-log-list .lt-danger { --lt: var(--h-blood); }
+[data-costume="haunted"] .live-log-list .lt-info { --lt: var(--h-ghost); }
+[data-costume="haunted"] .live-log-list .hi { filter: drop-shadow(0 0 5px rgba(var(--lt), .85)); }
+[data-costume="haunted"] .live-log-list li.is-new, [data-costume="haunted"] .alert-list li.is-new { animation: log-in-h 2s ease-out; }
+[data-costume="haunted"] .kpi.is-changed { animation: kpi-changed-h 1.6s ease-out; }
+@keyframes log-in-h { from { background-color: rgba(var(--h-candle), .24); box-shadow: 0 0 24px -6px rgba(var(--h-candle), .85); } }
+@keyframes kpi-changed-h { from { color: #fff3dc; text-shadow: 0 0 28px rgba(var(--h-candle), .95); } }
 @keyframes card-updated-h { 0% { border-color: rgba(var(--aura), 1); box-shadow: 0 0 0 1px rgba(var(--aura), .9), 0 0 44px 2px rgba(var(--aura), .6); } 100% { border-color: rgba(148, 163, 184, .11); } }
 .machine-card.is-called { outline: 2px solid rgba(13, 110, 253, .6); outline-offset: 2px; }
 .emf-led.is-called { transform: scale(1.45); }
@@ -642,7 +675,7 @@ mark.ink { padding: 0 .12em; border-radius: .2em; background: rgba(255, 193, 7, 
 [data-costume="haunted"] .inspection .inspection-img { box-shadow: 0 0 0 1px rgba(232, 226, 214, .12), 0 12px 28px -14px rgba(0, 0, 0, .95); }
 [data-costume="haunted"] .inspection.verdict-DEFECT { border-color: rgba(var(--h-blood), .45) !important; box-shadow: 0 0 28px -12px rgba(var(--h-blood), .85); }
 [data-costume="haunted"] .inspection.verdict-DEFECT .inspection-img { box-shadow: 0 0 0 1px rgba(var(--h-blood), .55), 0 0 24px -4px rgba(var(--h-blood), .6); }
-[data-costume="haunted"] .conn-card.conn-STALE, [data-costume="haunted"] .conn-card.conn-OFFLINE {
+[data-costume="haunted"] .conn-card.conn-STALE, [data-costume="haunted"] .conn-card.conn-OFFLINE, [data-costume="haunted"] .conn-card.conn-NO_DATA {
     background-image: var(--h-cobweb), linear-gradient(180deg, rgba(27, 31, 45, .82), rgba(14, 16, 25, .86));
     background-repeat: no-repeat; background-position: top right, 0 0; background-size: 110px 110px, auto;
 }
@@ -1000,7 +1033,8 @@ html:not([data-costume="haunted"])::view-transition-new(*) { animation: none !im
    ===================================================================================================== */
 @media (prefers-reduced-motion: reduce) {
     @view-transition { navigation: none; }
-    [data-costume="haunted"] *, [data-costume="haunted"] *::before, [data-costume="haunted"] *::after {
+    /* both costumes: the meters, stamps and change highlights that daylight shares must not move either */
+    *, *::before, *::after {
         animation-duration: 1ms !important; animation-delay: 0ms !important; animation-iteration-count: 1 !important; transition-duration: 1ms !important;
     }
     [data-costume="haunted"] body::after { display: none; }

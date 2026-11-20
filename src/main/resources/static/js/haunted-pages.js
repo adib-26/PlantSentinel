@@ -3,9 +3,10 @@
 // - approving seals a recommendation with wax, rejecting makes it fade away, then the form is sent as usual
 // - slow requests (investigation, report, inspection, manual upload) show what the server is doing meanwhile
 // - search words are highlighted in manual passages; the EMF meter lights up the card of the machine you point at
+// - every figure on the overview stays live, and a change log lists what changed since the page opened
 // - the Kiro assistant fills in example questions, and questions sent from the spirit board
 // - on the sign-in page the cursor is a lantern
-// Text taken from the page is always inserted with textContent.
+// Text taken from the page or the server is always inserted with textContent.
 (function () {
     'use strict';
     var H = window.BasHaunt || { isHaunted: function () { return false; }, reducedMotion: function () { return true; }, say: function () {} };
@@ -355,128 +356,437 @@
     });
 
     // ------------------------------------------------------------------ the overview stays live
-    // Every 30 s the machine list (health and the same failure-risk assessment as the cards) comes back from
-    // /machines.json; the cards' risk, aura, meter and the EMF meter follow it. Counts that also depend on
-    // connectivity are not recomputed here, so a changed risk level is announced with a link to reload.
-    var TONE = { LOW: 'success', MEDIUM: 'warning', HIGH: 'danger', CRITICAL: 'danger' };
-    var LEVELS = ['NONE', 'LOW', 'MEDIUM', 'HIGH', 'CRITICAL'];
-    var firstLevels = {};
-    var cardsByCode = {};
-    var ledsByCode = {};
-    function codeOf(a) {
-        return decodeURIComponent((a.getAttribute('href') || '').split('/').pop());
-    }
-    document.querySelectorAll('a.machine-link').forEach(function (link) {
-        var card = link.querySelector('.machine-card');
-        var code = codeOf(link);
-        cardsByCode[code] = card;
-        firstLevels[code] = LEVELS.filter(function (l) { return card.classList.contains('risk-' + l); })[0] || 'NONE';
-    });
-    document.querySelectorAll('a.emf-led').forEach(function (led) { ledsByCode[codeOf(led)] = led; });
-
-    function setLevelClass(el, level) {
-        LEVELS.forEach(function (l) { el.classList.remove('risk-' + l); });
-        el.classList.add('risk-' + level);
+    // The page carries the figures it was drawn with (data-overview, the same JSON as /overview.json). Every 30 s
+    // they come back from /overview.json, scoped to your factory and rate limited like other risk assessments, and
+    // every count, card, badge, light and alert follows them. The server formats the texts, so a refreshed figure
+    // reads exactly like a freshly loaded one. The change log under the risk summary lists, with the time, each change
+    // of risk level, health or connectivity and each new critical alert. Refreshing pauses while the tab is hidden,
+    // waits as long as the server asks (429 or 503 with Retry-After) and stops when the session has ended.
+    var overviewMain = document.querySelector('main[data-overview]');
+    if (overviewMain) {
+        liveOverview(overviewMain);
     }
 
-    function applyMachines(list, at) {
-        var scores = [];
-        var highest = null;
-        var changes = [];
-        list.forEach(function (m) {
-            if (m.riskScore === null || m.riskScore === undefined) {
+    function liveOverview(main) {
+        var POLL_MS = 30000;
+        var TIMEOUT_MS = 20000;
+        var LOG_MAX = 8;
+        var ICON = { alert: 'i-ghost', health: 'i-candle', risk: 'i-orb', conn: 'i-moon', machine: 'i-factory', session: 'i-key' };
+        var brand = document.querySelector('.navbar-brand');
+        var base = ((brand && brand.getAttribute('href')) || '/').replace(/\/$/, '');
+        var state = null;
+        try {
+            state = JSON.parse(main.getAttribute('data-overview'));
+        } catch (e) { /* no figures: the page stays as drawn */ }
+        if (!state || !Array.isArray(state.machines) || !Array.isArray(state.alerts)) {
+            return;
+        }
+        var cards = {};
+        var leds = {};
+        var levels = {};
+        main.querySelectorAll('[data-machine-card]').forEach(function (n) { cards[n.getAttribute('data-machine-card')] = n; });
+        main.querySelectorAll('[data-machine-led]').forEach(function (n) { leds[n.getAttribute('data-machine-led')] = n; });
+        main.querySelectorAll('[data-level]').forEach(function (n) { levels[n.getAttribute('data-level')] = n; });
+        var logBox = main.querySelector('.live-log');
+        var seenAlerts = {};
+        state.alerts.forEach(function (a) { seenAlerts[a.key] = true; });
+        var newMachines = {};
+        var lastPoll = Date.now();
+        var lastGood = null;
+        var timer = 0;
+        var busy = false;
+        var stopped = false;
+
+        function hook(name) {
+            return main.querySelector('[data-live="' + name + '"]');
+        }
+
+        function setText(node, value) {
+            if (!node || node.textContent === value) {
+                return false;
+            }
+            node.textContent = value;
+            return true;
+        }
+
+        function bump(name, value) {
+            var node = hook(name);
+            if (setText(node, value)) {
+                pulse(node, 'is-changed', 1400);
+            }
+        }
+
+        function flag(name, cls, on) {
+            var node = hook(name);
+            if (node) {
+                node.classList.toggle(cls, on);
+            }
+        }
+
+        function pulse(node, cls, ms) {
+            node.classList.remove(cls);
+            void node.offsetWidth;
+            node.classList.add(cls);
+            setTimeout(function () { node.classList.remove(cls); }, ms);
+        }
+
+        function show(node, on) {
+            if (node) {
+                node.toggleAttribute('hidden', !on);
+            }
+        }
+
+        function swapClass(node, prefix, value) {
+            Array.prototype.slice.call(node.classList).forEach(function (c) {
+                if (c.indexOf(prefix) === 0) {
+                    node.classList.remove(c);
+                }
+            });
+            node.classList.add(prefix + value);
+        }
+
+        function paintBadge(node, value, tone) {
+            if (node) {
+                node.className = 'badge text-bg-' + tone + ' st-' + value;
+                node.textContent = value;
+            }
+        }
+
+        function icon(id, cls) {
+            return H.svgUse ? H.svgUse(id, cls) : document.createElement('span');
+        }
+
+        function clockTime(at) {
+            var d = at ? new Date(at) : new Date();
+            return (isNaN(d) ? new Date() : d).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' });
+        }
+
+        function inView(node) {
+            var r = node && node.getBoundingClientRect();
+            return !!r && r.height > 0 && r.bottom > 0 && r.top < window.innerHeight;
+        }
+
+        // ---- what changed between two refreshes, most urgent first
+        function changes(prev, next) {
+            var out = [];
+            var before = {};
+            prev.machines.forEach(function (m) { before[m.code] = m; });
+            next.alerts.forEach(function (a) {
+                if (a.severity === 'CRITICAL' && !seenAlerts[a.key]) {
+                    out.push({ kind: 'alert', tone: 'danger', text: 'Critical alert on ' + a.code + ': ' + a.message });
+                }
+            });
+            next.machines.forEach(function (m) {
+                var p = before[m.code];
+                if (!p) {
+                    if (!cards[m.code] && !newMachines[m.code]) {
+                        newMachines[m.code] = true;
+                        out.push({ kind: 'machine', tone: 'info', reload: true, text: m.code + ' is new on this plant' });
+                    }
+                    return;
+                }
+                if (p.health !== m.health) {
+                    out.push({ kind: 'health', tone: m.healthTone, text: m.code + ' health ' + p.health + ' → ' + m.health });
+                }
+                if (p.risk !== m.risk) {
+                    out.push({ kind: 'risk', tone: m.risk ? m.riskTone : 'secondary', text: m.code + ' failure risk '
+                        + (p.risk ? p.risk + ' ' + p.riskPct : 'not assessed') + ' → ' + (m.risk ? m.risk + ' ' + m.riskPct : 'not assessed') });
+                }
+                if (p.connectivity !== m.connectivity) {
+                    out.push({ kind: 'conn', tone: m.connectivityTone, text: m.code + ' connectivity ' + p.connectivity + ' → ' + m.connectivity });
+                }
+            });
+            return out;
+        }
+
+        // ---- apply a refresh to the page
+        function apply(next) {
+            bump('total', String(next.total));
+            bump('normal', String(next.normal));
+            bump('attention', String(next.attention));
+            flag('attention-card', 'kpi-alarm', next.attention > 0);
+            bump('alert-count', String(next.alertCount));
+            flag('alert-count', 'text-danger', next.criticalAlerts > 0);
+            setText(hook('critical-count'), next.criticalAlerts + ' critical');
+            flag('alerts-card', 'kpi-critical', next.criticalAlerts > 0);
+            flag('alerts-card', 'kpi-alarm', next.criticalAlerts === 0 && next.alertCount > 0);
+            bump('pending', String(next.pendingReviews));
+            flag('pending-card', 'kpi-alarm', next.pendingReviews > 0);
+
+            var watch = hook('night-watch');
+            if (watch) {
+                ['alarm', 'uneasy', 'calm'].forEach(function (mood) { watch.classList.toggle('is-' + mood, next.nightWatch.mood === mood); });
+            }
+            setText(hook('night-watch-text'), next.nightWatch.text);
+
+            var risk = next.risk;
+            bump('mean', risk.mean);
+            setText(hook('emf-value'), risk.mean);
+            var emf = main.querySelector('.emf');
+            if (emf) {
+                emf.style.setProperty('--mean', String(risk.meanShare));
+            }
+            var highest = hook('highest');
+            show(highest, !!risk.highest);
+            setText(highest, risk.highest || '');
+            setText(hook('assessed'), risk.assessedText);
+            risk.byLevel.forEach(function (l) {
+                var row = levels[l.level];
+                if (row) {
+                    var bar = row.querySelector('[data-live="level-bar"]');
+                    if (bar) {
+                        bar.style.width = l.share + '%';
+                    }
+                    setText(row.querySelector('[data-live="level-count"]'), String(l.count));
+                }
+            });
+            next.machines.forEach(applyMachine);
+            renderAlerts(next.alerts);
+        }
+
+        function applyMachine(m) {
+            var assessed = m.risk !== null && m.risk !== undefined;
+            var link = cards[m.code];
+            if (link) {
+                var card = link.querySelector('.machine-card');
+                var before = card.style.getPropertyValue('--risk').trim();
+                swapClass(card, 'tone-', m.healthTone);
+                swapClass(card, 'risk-', m.risk || 'NONE');
+                swapClass(card, 'conn-', m.connectivity);
+                card.classList.toggle('is-restless', m.restless);
+                card.classList.toggle('is-possessed', m.possessed);
+                card.style.setProperty('--risk', String(m.riskShare));
+                paintBadge(link.querySelector('[data-live="health"] .badge'), m.health, m.healthTone);
+                paintBadge(link.querySelector('[data-live="conn"] .badge'), m.connectivity, m.connectivityTone);
+                var riskBlock = link.querySelector('[data-live="risk"]');
+                show(riskBlock, assessed);
+                show(link.querySelector('[data-live="meter"]'), assessed);
+                show(link.querySelector('[data-live="no-risk"]'), !assessed);
+                if (assessed && riskBlock) {
+                    setText(riskBlock.querySelector('[data-live="risk-value"]'), m.riskPct);
+                    paintBadge(riskBlock.querySelector('.badge'), m.risk, m.riskTone);
+                }
+                var fill = link.querySelector('[data-live="meter"] > span');
+                if (fill) {
+                    fill.style.width = m.riskShare + '%';
+                }
+                show(link.querySelector('[data-live="apparition"]'), m.anomalies24h > 0);
+                setText(link.querySelector('[data-live="anomalies"]'), m.anomaliesText);
+                setText(link.querySelector('[data-live="data-line"]'), m.dataLine);
+                show(link.querySelector('[data-live="quiet"]'), !!m.quiet);
+                if (m.quiet) {
+                    setText(link.querySelector('[data-live="quiet-text"]'), m.quiet);
+                }
+                if (before && before !== String(m.riskShare)) {
+                    pulse(card, 'is-updated', 1700);
+                }
+            }
+            var led = leds[m.code];
+            if (led) {
+                var said = assessed ? m.riskPct + ' ' + m.risk : null;
+                swapClass(led, 'risk-', m.risk || 'NONE');
+                led.style.setProperty('--risk', String(m.riskShare));
+                led.title = m.code + ' · ' + (said || 'no risk data');
+                setText(led.querySelector('.visually-hidden'), m.code + ' · failure risk ' + (said || 'not assessed'));
+            }
+        }
+
+        function renderAlerts(list) {
+            var host = hook('alerts');
+            if (!host) {
                 return;
             }
-            var pct = Math.round(m.riskScore * 100);
-            scores.push(m.riskScore);
-            if (!highest || m.riskScore > highest.riskScore) {
-                highest = m;
+            var items = list.map(function (a) {
+                var li = document.createElement('li');
+                li.className = 'mb-1 sev-' + a.severity + (seenAlerts[a.key] ? '' : ' is-new');
+                var badge = document.createElement('span');
+                paintBadge(badge, a.severity, a.tone);
+                var link = document.createElement('a');
+                link.href = base + '/machines/' + encodeURIComponent(a.code);
+                link.textContent = a.code;
+                var message = document.createElement('span');
+                message.textContent = a.message;
+                var ago = document.createElement('span');
+                ago.className = 'text-secondary';
+                ago.textContent = '· ' + a.ago;
+                li.append(icon('i-ghost', 'hi apparition-ico costume-only'), ' ', badge, ' ', link, ' ', message, ' ', ago);
+                return li;
+            });
+            if (!items.length) {
+                var none = document.createElement('li');
+                none.className = 'text-secondary';
+                none.textContent = 'No anomalies in the last hour.';
+                var tonight = document.createElement('span');
+                tonight.className = 'costume-only';
+                tonight.textContent = ' No apparitions tonight.';
+                none.appendChild(tonight);
+                items.push(none);
             }
-            var card = cardsByCode[m.code];
-            if (card) {
-                var before = card.style.getPropertyValue('--risk').trim();
-                card.style.setProperty('--risk', String(pct));
-                setLevelClass(card, m.risk);
-                var restless = m.health === 'WARNING' || m.health === 'CRITICAL' || m.risk === 'HIGH' || m.risk === 'CRITICAL';
-                card.classList.toggle('is-restless', restless);
-                card.classList.toggle('is-possessed', m.health === 'CRITICAL' || m.risk === 'CRITICAL');
-                var value = card.querySelector('.metric-value');
-                if (value) {
-                    value.textContent = pct + '%';
-                    var badge = value.nextElementSibling;
-                    if (badge && badge.classList.contains('badge')) {
-                        badge.className = 'badge text-bg-' + (TONE[m.risk] || 'secondary') + ' st-' + m.risk;
-                        badge.textContent = m.risk;
+            host.replaceChildren.apply(host, items);
+            list.forEach(function (a) { seenAlerts[a.key] = true; });
+        }
+
+        // ---- the change log (role="log": screen readers announce each new entry)
+        function addToLog(entries, at) {
+            var list = hook('log-list');
+            if (!list || !entries.length) {
+                return;
+            }
+            var when = new Date(at);
+            if (isNaN(when)) {
+                when = new Date();
+            }
+            for (var i = entries.length - 1; i >= 0; i--) {
+                var e = entries[i];
+                var li = document.createElement('li');
+                li.className = 'is-new log-' + e.kind + ' lt-' + e.tone;
+                var time = document.createElement('time');
+                time.dateTime = when.toISOString();
+                time.textContent = clockTime(when);
+                var words = document.createElement('span');
+                words.className = 'log-text';
+                words.textContent = e.text;
+                if (e.reload) {
+                    var again = document.createElement('a');
+                    again.href = window.location.pathname;
+                    again.textContent = 'Reload to see its card';
+                    words.append('. ', again);
+                }
+                if (e.signIn) {
+                    var signIn = document.createElement('a');
+                    signIn.href = base + '/login';
+                    signIn.textContent = 'Sign in again';
+                    words.append(' ', signIn);
+                }
+                li.append(time, icon(ICON[e.kind] || 'i-scroll', 'hi costume-only'), words);
+                list.prepend(li);
+            }
+            while (list.children.length > LOG_MAX) {
+                list.lastElementChild.remove();
+            }
+            show(hook('log-head'), true);
+            if (logBox) {
+                logBox.classList.add('has-entries');
+            }
+        }
+
+        // ---- the "live" stamp under the EMF meter (not announced; the log is)
+        function stamp(kind, at) {
+            var node = hook('stamp');
+            if (!node) {
+                return;
+            }
+            var dot = node.querySelector('.live-dot');
+            node.replaceChildren();
+            if (dot) {
+                node.appendChild(dot);
+            }
+            node.classList.toggle('is-live', kind === 'live');
+            node.classList.toggle('is-stale', kind === 'stale');
+            if (kind === 'live') {
+                lastGood = at;
+                node.append(' live · updated ' + clockTime(at));
+            } else if (kind === 'stale') {
+                node.append(' not updating · figures from ' + (lastGood ? clockTime(lastGood) : 'page load') + ' · retrying');
+            } else {
+                node.append(' paused · session ended');
+            }
+        }
+
+        function update(next) {
+            var entries = changes(state, next);
+            apply(next);
+            state = next;
+            stamp('live', next.at);
+            addToLog(entries, next.at);
+            var spoke = H.feedMachines ? H.feedMachines(next.machines) : false;
+            // The ghost only tells you about changes when the log is out of sight (scrolled away), never over it.
+            if (entries.length && !spoke && H.isHaunted() && !inView(logBox)) {
+                H.say(entries[0].text.replace(/[.\s]+$/, '') + (entries.length > 1 ? ', and ' + (entries.length - 1)
+                    + ' more in the change log' : '') + '. The omens have shifted.', 6000, true);
+            }
+        }
+
+        function ended() {
+            stopped = true;
+            clearTimeout(timer);
+            stamp('ended');
+            addToLog([{ kind: 'session', tone: 'secondary', signIn: true,
+                text: 'Live updates stopped: your session has ended. The figures above are from ' + clockTime(lastGood || state.at) + '.' }],
+                new Date().toISOString());
+        }
+
+        function retryAfter(r) {
+            var seconds = parseInt(r.headers.get('Retry-After') || '', 10);
+            return isFinite(seconds) && seconds > 0 ? Math.min(seconds, 600) * 1000 : POLL_MS;
+        }
+
+        function poll() {
+            clearTimeout(timer);
+            if (stopped || busy || document.hidden) {
+                return; // a hidden tab resumes on visibilitychange; a running request schedules the next one
+            }
+            busy = true;
+            var delay = POLL_MS;
+            var options = { credentials: 'same-origin', redirect: 'manual', cache: 'no-store', headers: { 'Accept': 'application/json' } };
+            if (window.AbortSignal && AbortSignal.timeout) {
+                options.signal = AbortSignal.timeout(TIMEOUT_MS);
+            }
+            fetch(base + '/overview.json', options)
+                .then(function (r) {
+                    // An ended session answers with a redirect to the sign-in page (or 401/403): stop asking.
+                    if (r.type === 'opaqueredirect' || r.status === 401 || r.status === 403) {
+                        ended();
+                        return null;
                     }
-                }
-                var fill = card.querySelector('.haunt-meter > span');
-                if (fill) {
-                    fill.style.width = pct + '%';
-                }
-                if (before && before !== String(pct)) {
-                    card.classList.remove('is-updated');
-                    void card.offsetWidth;
-                    card.classList.add('is-updated');
-                    setTimeout(function () { card.classList.remove('is-updated'); }, 1700);
-                }
+                    if (r.status === 429 || r.status === 503) {
+                        delay = Math.max(POLL_MS, retryAfter(r));
+                    }
+                    if (!r.ok || !/json/i.test(r.headers.get('Content-Type') || '')) {
+                        throw new Error('HTTP ' + r.status);
+                    }
+                    return r.json();
+                })
+                .then(function (next) {
+                    if (next && !stopped && Array.isArray(next.machines)) {
+                        update(next);
+                    }
+                })
+                .catch(function () {
+                    if (!stopped) {
+                        stamp('stale');
+                    }
+                })
+                .finally(function () {
+                    busy = false;
+                    lastPoll = Date.now();
+                    if (!stopped) {
+                        timer = setTimeout(poll, delay);
+                    }
+                });
+        }
+
+        function resume() {
+            if (!stopped && !busy) {
+                clearTimeout(timer);
+                timer = setTimeout(poll, Math.max(0, POLL_MS - (Date.now() - lastPoll)));
             }
-            var led = ledsByCode[m.code];
-            if (led) {
-                led.style.setProperty('--risk', String(pct));
-                setLevelClass(led, m.risk);
-                led.title = m.code + ' · ' + pct + '% ' + m.risk;
-                var label = led.querySelector('.visually-hidden');
-                if (label) {
-                    label.textContent = m.code + ' · failure risk ' + pct + '% ' + m.risk;
-                }
-            }
-            var was = firstLevels[m.code];
-            if (was && was !== 'NONE' && was !== m.risk) {
-                changes.push(m.code + ' ' + was + ' → ' + m.risk);
+        }
+
+        document.addEventListener('visibilitychange', function () {
+            if (!document.hidden) {
+                resume();
             }
         });
-        if (scores.length) {
-            var mean = scores.reduce(function (a, b) { return a + b; }, 0) / scores.length;
-            var meanPct = Math.round(mean * 100);
-            var emf = document.querySelector('.emf');
-            if (emf) {
-                emf.style.setProperty('--mean', String(meanPct));
+        window.addEventListener('pageshow', function (e) {
+            if (e.persisted) {
+                resume();
             }
-            document.querySelectorAll('[data-live="mean"], [data-live="emf-value"]').forEach(function (n) { n.textContent = meanPct + '%'; });
-            var top = document.querySelector('[data-live="highest"]');
-            if (top && highest) {
-                top.textContent = 'highest ' + highest.code + ' ' + Math.round(highest.riskScore * 100) + '%';
-            }
+        });
+        if (H.feedMachines) {
+            H.feedMachines(state.machines);
         }
-        var stamp = document.querySelector('[data-live="stamp"]');
-        if (stamp) {
-            var dot = stamp.querySelector('.live-dot');
-            stamp.textContent = ' live · updated ' + new Date(at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' });
-            if (dot) {
-                stamp.prepend(dot);
-            }
-            stamp.classList.add('is-live');
-        }
-        var note = document.querySelector('[data-live="note"]');
-        if (note) {
-            note.replaceChildren();
-            if (changes.length) {
-                note.appendChild(document.createTextNode('Risk level changed since this page opened: ' + changes.join(', ') + '. '));
-                var reload = document.createElement('a');
-                reload.href = window.location.pathname;
-                reload.textContent = 'Reload for every figure';
-                note.appendChild(reload);
-                note.hidden = false;
-                if (H.isHaunted()) {
-                    H.say(changes.join(', ') + '. The omens have shifted.', 5000);
-                }
-            } else {
-                note.hidden = true;
-            }
-        }
-    }
-    if (document.querySelector('.machine-card')) {
-        document.addEventListener('machinesupdate', function (e) { applyMachines(e.detail.machines, e.detail.at); });
+        timer = setTimeout(poll, POLL_MS);
     }
 
     // ------------------------------------------------------------------ Kiro assistant

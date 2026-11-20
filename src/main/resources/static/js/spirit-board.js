@@ -1,7 +1,8 @@
 // The spirit board: a command palette to jump to any machine, page or investigation, search the manuals or ask Kiro.
 // Press "/" (or Ctrl/Cmd+K) anywhere. In the haunted costume it is an Ouija board whose letters light up as you type
 // and whose planchette glides to the selected answer. The Kiro ghost in the corner opens it too; it watches the
-// cursor and gets scared when one of your machines turns CRITICAL (it polls /machines.json, scoped to your factory).
+// cursor and gets scared when one of your machines turns CRITICAL. It polls /machines.json (scoped to your factory)
+// every minute in costume; on the overview the page refreshes its own figures and hands the machines over instead.
 // All machine and user text is inserted with textContent, never as HTML.
 (function () {
     'use strict';
@@ -17,10 +18,13 @@
     var canWrite = /engineer|admin/.test(roleText);
     var hasAssistant = !!nav.querySelector('a[href$="/assistant"]');
     var MAX_ASK = 200;
+    // The overview (haunted-pages.js) refreshes every figure itself and feeds the machines in with H.feedMachines.
+    var fed = !!document.querySelector('main[data-overview]');
 
     var machines = [];
     var machinesAt = 0;
     var loading = null;
+    var signedOut = false;
     var FRESH_MS = 30000;
 
     // One list per tab, shared by every page for 30 s, so moving between pages does not recompute the risk each time.
@@ -32,6 +36,14 @@
         }
     } catch (e) { /* no cache */ }
 
+    function remember(list) {
+        machines = Array.isArray(list) ? list : [];
+        machinesAt = Date.now();
+        try {
+            sessionStorage.setItem('bas.machines', JSON.stringify({ at: machinesAt, list: machines }));
+        } catch (e) { /* ignore */ }
+    }
+
     function loadMachines(force) {
         if (!force && machinesAt && Date.now() - machinesAt < FRESH_MS) {
             return Promise.resolve(machines);
@@ -39,15 +51,15 @@
         if (loading) {
             return loading;
         }
-        loading = fetch(BASE + '/machines.json', { credentials: 'same-origin', headers: { 'Accept': 'application/json' } })
-            .then(function (r) { return r.ok ? r.json() : Promise.reject(r.status); })
+        loading = fetch(BASE + '/machines.json', { credentials: 'same-origin', redirect: 'manual', headers: { 'Accept': 'application/json' } })
+            .then(function (r) {
+                if (r.type === 'opaqueredirect') {
+                    signedOut = true; // the session has ended: stop polling until the next page load
+                }
+                return r.ok ? r.json() : Promise.reject(r.status);
+            })
             .then(function (list) {
-                machines = Array.isArray(list) ? list : [];
-                machinesAt = Date.now();
-                try {
-                    sessionStorage.setItem('bas.machines', JSON.stringify({ at: machinesAt, list: machines }));
-                } catch (e) { /* ignore */ }
-                document.dispatchEvent(new CustomEvent('machinesupdate', { detail: { machines: machines, at: machinesAt } }));
+                remember(list);
                 return machines;
             })
             .catch(function () { return machines; })
@@ -124,9 +136,9 @@
         return names.join(' and ') + (list.length > 2 ? ' and ' + (list.length - 2) + ' more' : '');
     }
 
-    function say(text, ms) {
-        if (!bubble || !H.isHaunted()) {
-            return;
+    function say(text, ms, unprompted) {
+        if (!bubble || !H.isHaunted() || (unprompted && coversAvoided())) {
+            return false;
         }
         bubble.textContent = text;
         bubble.classList.add('is-shown');
@@ -136,12 +148,25 @@
             bubble.classList.remove('is-shown');
             companion.classList.remove('is-out');
         }, ms || 4200);
+        return true;
     }
     H.say = say;
 
+    // Lines nobody asked for are dropped rather than shown over the overview's change log ([data-ghost-avoid]), which
+    // already says the same. The zone is the bottom-right corner where the bubble appears (see .kc-bubble).
+    function coversAvoided() {
+        var left = window.innerWidth - 400;
+        var top = window.innerHeight - 200;
+        return Array.prototype.some.call(document.querySelectorAll('[data-ghost-avoid]'), function (n) {
+            var r = n.getBoundingClientRect();
+            return r.height > 0 && r.right > left && r.bottom > top && r.top < window.innerHeight;
+        });
+    }
+
+    // Returns true when the ghost spoke (a machine has just turned CRITICAL).
     function updateMood() {
         if (!companion) {
-            return;
+            return false;
         }
         mood.critical = machines.filter(function (m) { return severity(m) === 3; });
         mood.warning = machines.filter(function (m) { return severity(m) === 2; });
@@ -154,26 +179,33 @@
             known = sessionStorage.getItem('bas.critical') || '';
         } catch (e) { /* ignore */ }
         var now = mood.critical.map(function (m) { return m.code; }).sort().join(',');
-        var fresh = mood.critical.some(function (m) { return known.split(',').indexOf(m.code) < 0; });
+        var fresh = mood.critical.filter(function (m) { return known.split(',').indexOf(m.code) < 0; });
         try {
             sessionStorage.setItem('bas.critical', now);
         } catch (e) { /* ignore */ }
-        if (fresh) {
-            say(codes(mood.critical) + (mood.critical.length === 1 ? ' has' : ' have') + ' turned CRITICAL. I can feel it from here.', 7000);
-            if (H.heartbeat) {
-                H.heartbeat(3);
-            }
+        if (!fresh.length) {
+            return false;
         }
+        if (H.heartbeat) {
+            H.heartbeat(3);
+        }
+        return say(codes(fresh) + (fresh.length === 1 ? ' has' : ' have') + ' turned CRITICAL. I can feel it from here.', 7000, true);
     }
 
-    // The Kiro ghost polls in costume; the overview polls in both costumes so its cards stay live.
-    var overview = !!document.querySelector('.machine-card');
-
+    // The Kiro ghost polls in costume, except on the overview, which refreshes every figure itself (see feedMachines).
     function poll() {
-        if (!document.hidden && (H.isHaunted() || overview)) {
+        if (!fed && !signedOut && !document.hidden && H.isHaunted()) {
             loadMachines(false).then(updateMood);
         }
     }
+
+    // The overview hands over its refreshed machines (the rows of /overview.json carry the /machines.json fields), so
+    // the ghost and the board show the same figures as the page without a second request. Returns true when the
+    // ghost spoke about it.
+    H.feedMachines = function (list) {
+        remember(list);
+        return updateMood();
+    };
 
     // ------------------------------------------------------------------ the board
     var board = null;
@@ -630,6 +662,9 @@
         if (H.isHaunted()) {
             if (!companion) {
                 buildCompanion();
+                if (machinesAt) {
+                    updateMood();
+                }
             }
             poll();
         }
@@ -639,7 +674,9 @@
         lastQuery = null;
     });
     syncCompanion();
-    setInterval(poll, overview ? 30000 : 60000);
+    if (!fed) {
+        setInterval(poll, 60000);
+    }
     document.addEventListener('visibilitychange', function () {
         if (!document.hidden) {
             poll();

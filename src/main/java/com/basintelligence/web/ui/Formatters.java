@@ -47,6 +47,11 @@ public class Formatters {
         return probability == null ? "–" : Text.pct(probability);
     }
 
+    /** e.g. "data 98% complete · 2 min ago": how complete the last hour of readings is, and when the machine last reported. */
+    public String dataLine(double completeness, Instant lastSeenAt) {
+        return "data " + Text.pct(completeness) + " complete · " + ago(lastSeenAt);
+    }
+
     public String num(Double value, int decimals) {
         return value == null || value.isNaN() ? "–" : Text.num(value, decimals);
     }
