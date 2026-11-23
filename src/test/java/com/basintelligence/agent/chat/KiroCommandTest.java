@@ -57,6 +57,16 @@ class KiroCommandTest {
                 .doesNotContainKeys("BAS_AGENT_API_KEY", "DATABASE_URL", "BAS_ADMIN_PASSWORD");
         assertThat(env.keySet()).allMatch(k -> k.equals("BAS_RUN_TOKEN") || k.equals("HOME") || k.equals("USER")
                 || k.equals("LOGNAME") || k.equals("PATH") || k.equals("LANG") || KiroCommand.PASSED_THROUGH.contains(k));
+        assertThat(env).doesNotContainKey("KIRO_API_KEY");
+    }
+
+    @Test
+    void passesTheKiroApiKeyAndNothingElseNew() {
+        var parent = new java.util.HashMap<>(PARENT);
+        parent.put("KIRO_API_KEY", "ksk-test");
+        var env = KiroCommand.of(KIRO, "bas-web-assistant", "q", null, TOKEN, parent, "/Users/eng", "eng").environment();
+        assertThat(env).containsEntry("KIRO_API_KEY", "ksk-test")
+                .doesNotContainKeys("BAS_AGENT_API_KEY", "DATABASE_URL", "BAS_ADMIN_PASSWORD");
     }
 
     @Test

@@ -23,7 +23,7 @@ public final class KiroCommand {
     public static final String MODEL = "auto";
     /** Taken from the app's environment when set; Kiro may need them to find its login on Linux. */
     static final List<String> PASSED_THROUGH = List.of("TMPDIR", "XDG_CONFIG_HOME", "XDG_DATA_HOME", "XDG_CACHE_HOME",
-            "XDG_RUNTIME_DIR", "DBUS_SESSION_BUS_ADDRESS");
+            "XDG_RUNTIME_DIR", "DBUS_SESSION_BUS_ADDRESS", "KIRO_API_KEY");
     static final String TOKEN_VARIABLE = "BAS_RUN_TOKEN";
 
     private final List<String> arguments;
