@@ -1,5 +1,5 @@
 """
-Builds the baseline surface-defect ONNX model used by BAS Intelligence.
+Builds the baseline surface-defect ONNX model used by PlantSentinel.
 
 Contract (any replacement model MUST keep it so the Java side stays unchanged):
     input  "image"              float32 [1, 1, 128, 128]  grayscale, values in [0, 1]
@@ -75,7 +75,7 @@ def build(path: str) -> None:
     model = helper.make_model(graph, opset_imports=[helper.make_opsetid("", 13)],
                               producer_name="bas-intelligence")
     model.ir_version = 8
-    model.doc_string = "BAS Intelligence baseline surface-defect detector (fixed-weight CNN) v1"
+    model.doc_string = "PlantSentinel baseline surface-defect detector (fixed-weight CNN) v1"
     onnx.checker.check_model(model)
     onnx.save(model, path)
     print(f"Wrote {path} (W_MAX={W_MAX}, W_MEAN={W_MEAN}, BIAS={BIAS})")

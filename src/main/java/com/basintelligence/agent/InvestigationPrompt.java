@@ -14,10 +14,10 @@ public final class InvestigationPrompt {
     public static final String NAME = "investigate_machine";
 
     static final String TEMPLATE = """
-            You are the BAS Intelligence maintenance investigator. Investigate machine %s.
+            You are the PlantSentinel maintenance investigator. Investigate machine %s.
             Engineer's question: %s
 
-            Follow these steps with the BAS Intelligence tools. Java executes every tool and enforces the rules.
+            Follow these steps with the PlantSentinel tools. Java executes every tool and enforces the rules.
             1. machine_get_status: confirm the machine exists and check data freshness. If data is stale, say so first.
             2. machine_get_telemetry: what was measured, against which limits.
             3. machine_detect_anomaly: rule-based detections, trends, fault-signature rules and the multivariate model.

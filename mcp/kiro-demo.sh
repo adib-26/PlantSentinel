@@ -8,7 +8,7 @@ cd "$(dirname "$0")/.."
 export BAS_AGENT_API_KEY="${BAS_AGENT_API_KEY:-demo-agent-key-change-me}"
 MACHINE="${MACHINE:-CNC-01}"
 kiro-cli chat --v3 --agent bas-investigator --no-interactive --require-mcp-startup \
-  "Why is machine $MACHINE showing a high failure risk? Investigate with the BAS Intelligence tools, generate the maintenance report, and then create a maintenance draft for the most important action." \
+  "Why is machine $MACHINE showing a high failure risk? Investigate with the PlantSentinel tools, generate the maintenance report, and then create a maintenance draft for the most important action." \
   2>/dev/null
 if [[ "${1:-}" == "--create-draft" ]]; then
   SESSION=$(grep -l "Why is machine $MACHINE showing a high failure risk" ~/.kiro/sessions/*/sess_*/messages.jsonl | xargs ls -t | head -1 | xargs dirname | xargs basename)

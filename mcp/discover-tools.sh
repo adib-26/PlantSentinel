@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Connects a separate MCP client (plain Java, MCP SDK, no Spring context) to a running BAS Intelligence
+# Connects a separate MCP client (plain Java, MCP SDK, no Spring context) to a running PlantSentinel
 # and prints the tools and prompts it discovers, then runs a read-only investigation.
 #   ./mcp/discover-tools.sh [http://localhost:8080] [CNC-01]
 # Uses BAS_AGENT_API_KEY (demo default: demo-agent-key-change-me).

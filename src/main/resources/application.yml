@@ -29,7 +29,7 @@ spring:
         protocol: STREAMABLE
         request-timeout: 45s
         instructions: >
-          BAS Intelligence maintenance investigator. Load the investigate_machine prompt. Order:
+          PlantSentinel maintenance investigator. Load the investigate_machine prompt. Order:
           machine_get_status, machine_get_telemetry, machine_detect_anomaly, machine_get_failure_prediction,
           machine_get_history, machine_get_specifications, maintenance_search_manual, then
           maintenance_generate_report, then offer maintenance_create_draft. Every result is labelled MEASURED,

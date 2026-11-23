@@ -69,7 +69,7 @@ public class AppConfig {
     OpenAPI basOpenApi() {
         return new OpenAPI()
                 .info(new Info()
-                        .title("BAS Intelligence API")
+                        .title("PlantSentinel API")
                         .version("0.1.0")
                         .description("Industrial monitoring, predictive maintenance and diagnostics. "
                                 + "Edge endpoints use the X-API-Key header; other endpoints use HTTP Basic."))

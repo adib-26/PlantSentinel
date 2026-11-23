@@ -1,8 +1,8 @@
 #!/usr/bin/env bash
 # Real end-to-end test of "BAS becomes unavailable" with a real Mako Server edge node:
-#   1. the edge node posts readings to BAS Intelligence,
-#   2. BAS Intelligence goes down: readings queue on the edge (store-and-forward),
-#   3. BAS Intelligence comes back: the queue is flushed, nothing is lost and nothing is stored twice.
+#   1. the edge node posts readings to PlantSentinel,
+#   2. PlantSentinel goes down: readings queue on the edge (store-and-forward),
+#   3. PlantSentinel comes back: the queue is flushed, nothing is lost and nothing is stored twice.
 #
 # Needs a Mako Server build (macOS has no binary; see docs/testing.md) and Java 21:
 #   MAKO_DIR=/path/to/BAS ./edge/test-edge-outage.sh

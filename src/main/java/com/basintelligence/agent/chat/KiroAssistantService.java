@@ -395,7 +395,7 @@ public class KiroAssistantService {
             return new Outcome(Status.DONE, reply, null);
         }
         if (exit == 3) {
-            return new Outcome(Status.FAILED, reply, "Kiro could not connect to the BAS Intelligence MCP server at "
+            return new Outcome(Status.FAILED, reply, "Kiro could not connect to the PlantSentinel MCP server at "
                     + "http://localhost:8080/mcp. The Kiro assistant needs the app on port 8080.");
         }
         if (exit == 0) {

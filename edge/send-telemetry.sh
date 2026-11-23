@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Sends telemetry to BAS Intelligence the same way the Mako Server edge node does.
+# Sends telemetry to PlantSentinel the same way the Mako Server edge node does.
 # Useful for testing ingestion without Mako Server installed.
 #
 #   ./edge/send-telemetry.sh CONV-04            one healthy reading

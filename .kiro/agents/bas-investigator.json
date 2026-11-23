@@ -1,6 +1,6 @@
 {
   "name": "bas-investigator",
-  "description": "BAS Intelligence maintenance investigator. Uses only the BAS Intelligence MCP tools: reads machine data, writes reports and proposes maintenance drafts that an engineer must approve.",
+  "description": "PlantSentinel maintenance investigator. Uses only the PlantSentinel MCP tools: reads machine data, writes reports and proposes maintenance drafts that an engineer must approve.",
   "prompt": "file://../steering/machine-investigation-playbook.md",
   "mcpServers": {
     "bas-intelligence": {

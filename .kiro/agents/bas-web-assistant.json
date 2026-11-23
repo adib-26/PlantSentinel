@@ -1,6 +1,6 @@
 {
   "name": "bas-web-assistant",
-  "description": "Kiro assistant of the BAS Intelligence web app. The server starts it for one engineer's message. It reads machine data and writes reports through the BAS Intelligence MCP tools only, with a short-lived credential that limits it to that engineer's machines. It has no shell, file or web tools and cannot create maintenance drafts.",
+  "description": "Kiro assistant of the PlantSentinel web app. The server starts it for one engineer's message. It reads machine data and writes reports through the PlantSentinel MCP tools only, with a short-lived credential that limits it to that engineer's machines. It has no shell, file or web tools and cannot create maintenance drafts.",
   "prompt": "file://./prompts/bas-web-assistant.md",
   "model": "auto",
   "mcpServers": {
@@ -52,5 +52,5 @@
       }
     ]
   },
-  "welcomeMessage": "Started by the BAS Intelligence web app for one engineer's message."
+  "welcomeMessage": "Started by the PlantSentinel web app for one engineer's message."
 }

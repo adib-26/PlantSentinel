@@ -1,8 +1,8 @@
 --[[
-BAS Intelligence edge node for Mako Server (Barracuda App Server).
+PlantSentinel edge node for Mako Server (Barracuda App Server).
 
 Runs on a gateway beside the machine. Every interval it reads sensors, appends the reading to a
-bounded store-and-forward queue, and posts the queue to BAS Intelligence as one JSON batch over
+bounded store-and-forward queue, and posts the queue to PlantSentinel as one JSON batch over
 HTTP(S) with the X-API-Key header. If the server is unreachable, readings stay queued (up to
 MAX_QUEUE) and are sent when the connection returns, so short outages do not lose data.
 

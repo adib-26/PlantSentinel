@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Downloads the public datasets used by the BAS Intelligence ML lab into ml/data/raw (git-ignored).
+# Downloads the public datasets used by the PlantSentinel ML lab into ml/data/raw (git-ignored).
 # Datasets are NOT committed to the repository; see ml/datasets/README.md for licences and attribution.
 # Each file's SHA-256 is written to ml/data/raw/SHA256SUMS. That checksum is the "training dataset version"
 # recorded in every model card.

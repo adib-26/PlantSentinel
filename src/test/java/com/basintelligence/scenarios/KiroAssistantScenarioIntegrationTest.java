@@ -135,7 +135,7 @@ class KiroAssistantScenarioIntegrationTest {
         long id = send(ADMIN, null, "MCPDOWN test");
         Message failed = awaitFinished(id);
         assertThat(failed.status()).isEqualTo(AssistantRepository.Status.FAILED);
-        assertThat(failed.errorMessage()).contains("could not connect to the BAS Intelligence MCP server");
+        assertThat(failed.errorMessage()).contains("could not connect to the PlantSentinel MCP server");
         assertThat(page("/assistant/conversations/" + id, ADMIN)).contains("could not connect");
 
         mvc.perform(post("/assistant/messages").with(ADMIN).with(csrf()).param("message", "x".repeat(201)))

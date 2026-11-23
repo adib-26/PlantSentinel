@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Uses the official MCP Inspector (a third-party client, Node.js) to list and call BAS Intelligence tools.
+# Uses the official MCP Inspector (a third-party client, Node.js) to list and call PlantSentinel tools.
 #   ./mcp/inspector.sh tools/list
 #   ./mcp/inspector.sh tools/call machine_get_status machineCode=CNC-01
 #   ./mcp/inspector.sh prompts/list

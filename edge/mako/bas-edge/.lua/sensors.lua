@@ -8,7 +8,7 @@ Replace sensors.read with real field-bus reads. Mako Server ships Modbus TCP and
    return { temperature = regs[1] / 10, vibration = regs[2] / 100, rpm = regs[3],
             torque = regs[4] / 10, pressure = regs[5] / 100 }
 
-Units expected by BAS Intelligence: °C, mm/s RMS, rpm, N·m, bar.
+Units expected by PlantSentinel: °C, mm/s RMS, rpm, N·m, bar.
 Until hardware is attached, this module simulates a healthy belt conveyor drive.
 ]]
 
