@@ -61,7 +61,7 @@ Thymeleaf + Bootstrap, no frontend build. Every AI-derived value is labelled **m
 | 2 Machine monitoring | `/machines/{code}` | details, 5 telemetry charts (2 h raw, 24 h / 7 d from 5-minute rollups), connectivity, data quality (interval, gaps, completeness, stuck sensors, edge vs simulated), historical readings |
 | 3 Predictive analytics | `/analytics` | Isolation Forest scores, risk estimates and trends, risk-model performance and feature weights, per-prediction log-odds contributions, prediction history chart, versions of all models |
 | 4 Report | `/reports`, `/investigations/{id}` | generate a report with the deterministic Java pipeline; the investigation page shows the evidence map, linked `[E2]` citations, tool execution trace, confidence and limitations |
-| 5 Kiro assistant | `/assistant` | a conversation with Kiro in the browser: each message runs Kiro CLI on the server over MCP, limited to the engineer's machines; shows the tool calls, the reports Kiro wrote and the credits used ([how it is secured](docs/security.md#kiro-assistant-in-the-browser)) |
+| 5 Kiro assistant | `/assistant` | a conversation with Kiro in the browser, for users with the Engineer role (`engineer`, `reviewer` and `admin`; not `technician` or `viewer`): each message runs Kiro CLI on the server over MCP, limited to the engineer's machines; shows the tool calls, the reports Kiro wrote and the credits used ([how it is secured](docs/security.md#kiro-assistant-in-the-browser)) |
 | 6 Maintenance | `/maintenance` | pending approvals, recommendations, work orders with technician assignment and completion, incident reports, approval decisions and audit trail |
 | 7 Knowledge | `/manuals`, `/manuals/{id}` | upload, browse, full-text search linked to exact sections, extracted sections with page numbers, which investigations cited each section |
 
@@ -81,11 +81,11 @@ and `POST /api/incidents/{id}/stop`.
 
 | Username | Password | Role | What it is for |
 |---|---|---|---|
-| `engineer` | `engineer123` | Engineer | registers machines, runs investigations, proposes and reviews recommendations |
-| `reviewer` | `reviewer123` | Engineer | the second engineer: approves what `engineer` or Kiro proposed (four-eyes rule) |
+| `engineer` | `engineer123` | Engineer | registers machines, runs investigations, proposes and reviews recommendations; can use the Kiro assistant |
+| `reviewer` | `reviewer123` | Engineer | the second engineer: approves what `engineer` or Kiro proposed (four-eyes rule); can use the Kiro assistant |
 | `technician` | `technician123` | Technician | sees the machines an admin assigns, completes work orders assigned to them |
 | `viewer` | `viewer123` | Viewer | read-only dashboards, investigations and reports |
-| `admin` | `admin123` | Admin | everything above plus Administration (users, factories, edge gateways, assignments), audit log and agent activity |
+| `admin` | `admin123` | Admin | everything above, including the Kiro assistant, plus Administration (users, factories, edge gateways, assignments), audit log and agent activity |
 
 Security details: `docs/security.md`. Monitoring (Actuator, metrics, structured logs): `docs/monitoring.md`.
 

@@ -41,7 +41,7 @@ Leave it unset once all nodes have their own keys.
 
 ## Kiro assistant in the browser
 
-The Kiro assistant page lets an engineer talk to Kiro. The web app is the MCP server, and Kiro needs a model, so each
+The Kiro assistant page lets an engineer talk to Kiro. Every account with the Engineer role can use it, which in the demo are `engineer`, `reviewer` and `admin` (an admin also holds the Engineer role); `technician` and `viewer` cannot. The web app is the MCP server, and Kiro needs a model, so each
 message runs Kiro CLI on the server as a child process. This is the only place the app starts a process, and it
 always runs the same fixed command:
 
@@ -58,7 +58,7 @@ always runs the same fixed command:
 | Engineer's scope | An MCP request with a run token is authenticated as `kiro-agent` with the run attached. `AccessScopeService` gives it the engineer's scope, re-read from `users` on every call, so a disabled account or lost engineer role gives an empty scope. `AuditingToolCallback` passes the identity to the thread that runs read tools. |
 | No drafts, whatever the agent file says | `AgentToolPolicy` refuses `createMaintenanceDraft` for run tokens (`DENIED`). Reports are written as `kiro-agent`, so the agent's citation and four-eyes rules still apply. The engineer can add a recommendation on the report page; another engineer reviews it. |
 | Clean environment | The child gets `HOME`, `USER`, `LOGNAME`, `PATH` (the kiro-cli folder plus system folders), `LANG`, `TMPDIR` and XDG/D-Bus variables if set, and the run token. Database URLs, keys and passwords are not passed. |
-| Limits | Engineers only (`@PreAuthorize`), 5 messages per minute (`bas.rate-limit.assistant-messages-per-minute`), one run per engineer, at most 2 runs on the server (`bas.assistant.max-concurrent-runs`), 2,000 characters per message, a 5-minute limit after which the process and its children are stopped, 1 MB per output line and 20 MB per run. |
+| Limits | Engineers only (`@PreAuthorize("hasRole('ENGINEER')")`; `reviewer` and `admin` have that role, `technician` and `viewer` do not), 5 messages per minute (`bas.rate-limit.assistant-messages-per-minute`), one run per engineer, at most 2 runs on the server (`bas.assistant.max-concurrent-runs`), 2,000 characters per message, a 5-minute limit after which the process and its children are stopped, 1 MB per output line and 20 MB per run. |
 | Private and audited | A conversation is visible only to the engineer who started it; anyone else gets 404. `KIRO_ASSISTANT_ASKED` and `KIRO_ASSISTANT_ANSWERED` go to the audit log. Every tool call of a run is in `agent_tool_audit` with `on_behalf_of` and `assistant_message_id`. Refused agent keys and run tokens are audited as `AGENT_AUTH_FAILED`. |
 
 Things to know:
