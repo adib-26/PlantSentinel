@@ -10,5 +10,6 @@ RUN apt-get update && apt-get install -y --no-install-recommends libgomp1 \
 WORKDIR /app
 COPY --from=build /src/target/bas-intelligence-0.1.0-SNAPSHOT.jar app.jar
 ENV SPRING_PROFILES_ACTIVE=demo
+ENV BAS_KIRO_ASSISTANT_ENABLED=false
 EXPOSE 8080
 ENTRYPOINT ["java", "-XX:MaxRAMPercentage=75.0", "-jar", "app.jar"]

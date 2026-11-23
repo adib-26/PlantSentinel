@@ -449,7 +449,8 @@ public class KiroAssistantService {
 
     private Availability check() {
         if (!config.enabled()) {
-            return new Availability(false, "it is switched off (bas.assistant.enabled).");
+            return new Availability(false, "it is switched off on this copy. It runs only on a machine where "
+                    + "Kiro CLI is installed and signed in. Reports on this site still work without Kiro.");
         }
         if (File.separatorChar != '/') {
             return new Availability(false, "it runs Kiro CLI as a child process, which is supported on macOS and Linux only.");
