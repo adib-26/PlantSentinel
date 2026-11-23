@@ -6,7 +6,7 @@
 <main class="container-fluid px-4">
     <div th:replace="~{fragments :: flash}"></div>
     <h1 class="h3 mb-1">Kiro assistant</h1>
-    <p class="text-secondary mb-3">Talk to Kiro about your machines. Kiro reads the plant data through the BAS Intelligence MCP
+    <p class="text-secondary mb-3">Talk to Kiro about your machines. Kiro reads the plant data through the PlantSentinel MCP
         tools, sees only the machines you can see, and stores each investigation as a report. It cannot create maintenance
         drafts or approve anything.</p>
     <div th:unless="${availability.available()}" class="alert alert-warning">
@@ -34,7 +34,7 @@
                     <strong>Auto</strong> model, which picks a model per task. It uses the Kiro login of the server and its
                     credits. Kiro gets a credential for this one answer that only works for your machines and ends with the
                     answer.</p>
-                <p class="mb-0">Every tool call is checked and logged by BAS Intelligence. Kiro's text is AI interpretation: check
+                <p class="mb-0">Every tool call is checked and logged by PlantSentinel. Kiro's text is AI interpretation: check
                     it against the evidence in the report it links to. Kiro has no shell, file or web access.</p>
             </div></div>
         </div>

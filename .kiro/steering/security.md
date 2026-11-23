@@ -3,7 +3,7 @@ inclusion: fileMatch
 fileMatchPattern: ['src/main/java/com/basintelligence/config/**', 'src/main/java/com/basintelligence/web/**', 'src/main/java/com/basintelligence/agent/**', 'src/main/resources/application*.yml']
 ---
 
-# Security rules for BAS Intelligence
+# Security rules for PlantSentinel
 
 - Four filter chains in `SecurityConfig`, most specific first: `/api/edge/**` (per-gateway key or the shared edge key), `/mcp` (agent key), `/api/**` (HTTP Basic, stateless; `/api/admin/**` ADMIN), web UI (form login + CSRF; `/admin/**` ADMIN). Keep new endpoints inside the right chain. Details: `docs/security.md`.
 - Machine credentials are separate per client class (edge vs agent). Gateway keys are stored only as SHA-256 hashes and bind a gateway to one factory; shared keys are compared in constant time. A missing key means fail closed. `SecretsCheck` refuses identical, short or placeholder keys outside demo/test.

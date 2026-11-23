@@ -57,7 +57,7 @@ Thymeleaf + Bootstrap, no frontend build. Every AI-derived value is labelled **m
 
 | Screen | Path | What it shows |
 |---|---|---|
-| 1 Factory overview | `/` | machine counts (total, normal, needing attention), active alerts, awaiting approval, factory risk summary, recent maintenance and investigations; every figure refreshes every 30 s (`/overview.json`), and a change log lists each risk, health and connectivity change and each new critical alert since the page opened |
+| 1 Factory overview | `/` | machine counts (total, normal, needing attention), active alerts, awaiting approval, factory risk summary, recent maintenance and investigations; every tile is a link: the machine counts filter the cards (`/?machines=attention`), the others open the alert list, the pending approvals and analytics; every figure refreshes every 30 s (`/overview.json`), and a change log lists each risk, health and connectivity change and each new critical alert since the page opened |
 | 2 Machine monitoring | `/machines/{code}` | details, 5 telemetry charts (2 h raw, 24 h / 7 d from 5-minute rollups), connectivity, data quality (interval, gaps, completeness, stuck sensors, edge vs simulated), historical readings |
 | 3 Predictive analytics | `/analytics` | Isolation Forest scores, risk estimates and trends, risk-model performance and feature weights, per-prediction log-odds contributions, prediction history chart, versions of all models |
 | 4 Report | `/reports`, `/investigations/{id}` | generate a report with the deterministic Java pipeline; the investigation page shows the evidence map, linked `[E2]` citations, tool execution trace, confidence and limitations |

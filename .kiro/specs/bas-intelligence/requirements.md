@@ -1,8 +1,8 @@
-# Requirements: BAS Intelligence
+# Requirements: PlantSentinel
 
 ## Introduction
 
-BAS Intelligence is a locally run Spring Boot application that monitors industrial machines, detects abnormal behaviour, estimates failure risk, inspects component images, and runs evidence-based investigations that end in human-approved maintenance actions and an incident report. Kiro acts as the reasoning agent through an MCP server. Constraints: Java 21, 8 GB laptop, CPU only, no cloud application hosting, RM0 recurring cost.
+PlantSentinel is a locally run Spring Boot application that monitors industrial machines, detects abnormal behaviour, estimates failure risk, inspects component images, and runs evidence-based investigations that end in human-approved maintenance actions and an incident report. Kiro acts as the reasoning agent through an MCP server. Constraints: Java 21, 8 GB laptop, CPU only, no cloud application hosting, RM0 recurring cost.
 
 ## Requirement 1: Machine registry
 

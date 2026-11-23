@@ -1,4 +1,4 @@
-# BAS Intelligence ML lab
+# PlantSentinel ML lab
 
 Offline training and evaluation in **Java with Smile**, run on the laptop CPU. The application serves the resulting
 models through `/api/ml/*` and Kiro's MCP tools. One command reproduces everything:

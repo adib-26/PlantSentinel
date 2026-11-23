@@ -1,4 +1,4 @@
-# Datasets used by the BAS Intelligence ML lab
+# Datasets used by the PlantSentinel ML lab
 
 Run `ml/datasets/fetch_datasets.sh` to download them into `ml/data/raw/` (git-ignored). **Raw data is not
 committed.** Each file's SHA-256 checksum is stored in `ml/data/raw/SHA256SUMS` and copied into every model card

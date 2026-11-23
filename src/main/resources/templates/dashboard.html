@@ -43,46 +43,68 @@
         </ul>
     </details>
 
+    <!-- Every tile is a link. The three machine counts filter the cards below (haunted-pages.js; ?machines= keeps the
+         filter on reload, Back and in a new tab). The others open the alert list, the pending approvals and analytics. -->
     <div class="row g-3 mb-3">
-        <div class="col-6 col-lg-2"><div class="card h-100 kpi-card"><div class="card-body">
-            <svg class="kpi-ico costume-only" aria-hidden="true"><use href="#i-factory"/></svg>
-            <div class="kpi-label">Registered machines</div><div class="kpi" data-live="total" th:text="${total}">4</div>
-        </div></div></div>
-        <div class="col-6 col-lg-2"><div class="card h-100 kpi-card kpi-calm"><div class="card-body">
-            <svg class="kpi-ico costume-only" aria-hidden="true"><use href="#i-moon"/></svg>
-            <div class="kpi-label">Operating normally</div><div class="kpi text-success" data-live="normal" th:text="${normal}">2</div>
-        </div></div></div>
-        <div class="col-6 col-lg-2"><div class="card h-100 kpi-card" data-live="attention-card" th:classappend="${attention > 0} ? 'kpi-alarm'"><div class="card-body">
-            <svg class="kpi-ico costume-only" aria-hidden="true"><use href="#i-ghost"/></svg>
-            <div class="kpi-label">Need attention</div><div class="kpi text-warning" data-live="attention" th:text="${attention}">2</div>
-            <div class="small text-secondary">health, risk ≥ HIGH or data not live</div>
-        </div></div></div>
-        <div class="col-6 col-lg-2"><div class="card h-100 kpi-card" data-live="alerts-card" th:classappend="${criticalAlerts > 0} ? 'kpi-critical' : (${alertCount > 0} ? 'kpi-alarm' : '')"><div class="card-body">
-            <svg class="kpi-ico costume-only" aria-hidden="true"><use href="#i-candle"/></svg>
-            <div class="kpi-label">Active alerts (1 h)</div><div class="kpi" data-live="alert-count" th:classappend="${criticalAlerts > 0} ? 'text-danger'" th:text="${alertCount}">3</div>
-            <div class="small text-secondary" data-live="critical-count" th:text="${criticalAlerts + ' critical'}">0 critical</div>
-        </div></div></div>
-        <div class="col-6 col-lg-2"><div class="card h-100 kpi-card" data-live="pending-card" th:classappend="${pendingReviews > 0} ? 'kpi-alarm'"><div class="card-body">
-            <svg class="kpi-ico costume-only" aria-hidden="true"><use href="#i-seal"/></svg>
-            <div class="kpi-label">Awaiting approval</div><div class="kpi" data-live="pending" th:text="${pendingReviews}">1</div>
-            <a class="small" th:href="@{/maintenance}">open maintenance</a>
-            <div class="small text-secondary costume-only">a second engineer must seal each one</div>
-        </div></div></div>
-        <div class="col-6 col-lg-2"><div class="card h-100 kpi-card"><div class="card-body">
-            <svg class="kpi-ico costume-only" aria-hidden="true"><use href="#i-orb"/></svg>
-            <div class="kpi-label">Mean failure risk</div>
-            <div class="kpi" data-live="mean" th:text="${@fmt.pct(riskSummary.meanProbability())}">20%</div>
-            <div class="small text-secondary" data-live="highest" th:hidden="${riskSummary.highest() == null}"
-                 th:text="${riskSummary.highestText()}">highest CNC-01 71%</div>
-        </div></div></div>
+        <div class="col-6 col-lg-2">
+            <a class="kpi-link" th:href="@{/}" data-machine-filter="all" title="Show all machines"><div class="card h-100 kpi-card"><div class="card-body">
+                <svg class="kpi-ico costume-only" aria-hidden="true"><use href="#i-factory"/></svg>
+                <div class="kpi-label">Registered machines</div><div class="kpi" data-live="total" th:text="${total}">4</div>
+            </div></div></a>
+        </div>
+        <div class="col-6 col-lg-2">
+            <a class="kpi-link" th:href="@{/(machines='normal')}" data-machine-filter="normal" title="Show only the machines operating normally"><div class="card h-100 kpi-card kpi-calm"><div class="card-body">
+                <svg class="kpi-ico costume-only" aria-hidden="true"><use href="#i-moon"/></svg>
+                <div class="kpi-label">Operating normally</div><div class="kpi text-success" data-live="normal" th:text="${normal}">2</div>
+            </div></div></a>
+        </div>
+        <div class="col-6 col-lg-2">
+            <a class="kpi-link" th:href="@{/(machines='attention')}" data-machine-filter="attention" title="Show only the machines that need attention"><div class="card h-100 kpi-card" data-live="attention-card" th:classappend="${attention > 0} ? 'kpi-alarm'"><div class="card-body">
+                <svg class="kpi-ico costume-only" aria-hidden="true"><use href="#i-ghost"/></svg>
+                <div class="kpi-label">Need attention</div><div class="kpi text-warning" data-live="attention" th:text="${attention}">2</div>
+                <div class="small text-secondary">health, risk ≥ HIGH or data not live</div>
+            </div></div></a>
+        </div>
+        <div class="col-6 col-lg-2">
+            <a class="kpi-link" href="#alerts" title="Go to the active anomaly alerts"><div class="card h-100 kpi-card" data-live="alerts-card" th:classappend="${criticalAlerts > 0} ? 'kpi-critical' : (${alertCount > 0} ? 'kpi-alarm' : '')"><div class="card-body">
+                <svg class="kpi-ico costume-only" aria-hidden="true"><use href="#i-candle"/></svg>
+                <div class="kpi-label">Active alerts (1 h)</div><div class="kpi" data-live="alert-count" th:classappend="${criticalAlerts > 0} ? 'text-danger'" th:text="${alertCount}">3</div>
+                <div class="small text-secondary" data-live="critical-count" th:text="${criticalAlerts + ' critical'}">0 critical</div>
+            </div></div></a>
+        </div>
+        <div class="col-6 col-lg-2">
+            <a class="kpi-link" th:href="@{/maintenance} + '#pending'" title="Open the pending approvals in Maintenance"><div class="card h-100 kpi-card" data-live="pending-card" th:classappend="${pendingReviews > 0} ? 'kpi-alarm'"><div class="card-body">
+                <svg class="kpi-ico costume-only" aria-hidden="true"><use href="#i-seal"/></svg>
+                <div class="kpi-label">Awaiting approval</div><div class="kpi" data-live="pending" th:text="${pendingReviews}">1</div>
+                <span class="small kpi-go">open maintenance</span>
+                <div class="small text-secondary costume-only">a second engineer must seal each one</div>
+            </div></div></a>
+        </div>
+        <div class="col-6 col-lg-2">
+            <a class="kpi-link" th:href="@{/analytics}" title="Open predictive analytics"><div class="card h-100 kpi-card"><div class="card-body">
+                <svg class="kpi-ico costume-only" aria-hidden="true"><use href="#i-orb"/></svg>
+                <div class="kpi-label">Mean failure risk</div>
+                <div class="kpi" data-live="mean" th:text="${@fmt.pct(riskSummary.meanProbability())}">20%</div>
+                <div class="small text-secondary" data-live="highest" th:hidden="${riskSummary.highest() == null}"
+                     th:text="${riskSummary.highestText()}">highest CNC-01 71%</div>
+            </div></div></a>
+        </div>
     </div>
+    <!-- Says what the machine filter shows after a tile is used (filled by haunted-pages.js). -->
+    <p class="visually-hidden" role="status" data-filter-status></p>
 
     <div class="row g-3 mb-3">
         <div class="col-xl-8">
             <div class="row g-3">
+                <div class="col-12" data-filter-bar hidden>
+                    <div class="machine-filter">
+                        <span><b data-filter-label></b>: <span data-filter-count></span></span>
+                        <a class="btn btn-sm btn-outline-secondary" th:href="@{/}" data-machine-filter="all">Show all machines</a>
+                    </div>
+                </div>
                 <div class="col-md-6" th:each="card : ${cards}">
                     <a class="text-decoration-none text-body machine-link" th:href="@{/machines/{code}(code=${card.machine().code()})}"
-                       th:data-machine-card="${card.machine().code()}">
+                       th:data-machine-card="${card.machine().code()}" th:data-attention="${card.needsAttention()}">
                         <div class="card machine-card h-100"
                              th:classappend="${'tone-' + @fmt.tone(card.health()) + ' risk-' + card.level() + ' conn-' + card.connectivity()
                                  + (card.restless() ? ' is-restless' : '') + (card.possessed() ? ' is-possessed' : '')}"
@@ -170,7 +192,7 @@
                 </div>
                 <a class="small" th:href="@{/analytics}">Open predictive analytics</a>
             </div></div>
-            <div class="card"><div class="card-body">
+            <div class="card" id="alerts"><div class="card-body">
                 <h2 class="h5">Active anomaly alerts</h2>
                 <ul class="list-unstyled small mb-0 alert-list" data-live="alerts">
                     <li th:each="a : ${alerts}" class="mb-1" th:classappend="'sev-' + ${a.event().severity()}" th:data-alert="${a.key()}">

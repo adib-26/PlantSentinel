@@ -1,4 +1,4 @@
-# Product: BAS Intelligence
+# Product: PlantSentinel
 
 AI-powered industrial monitoring, predictive maintenance and diagnostic assistant for factory engineers.
 

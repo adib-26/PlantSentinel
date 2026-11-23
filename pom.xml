@@ -14,7 +14,7 @@
     <groupId>com.basintelligence</groupId>
     <artifactId>bas-intelligence</artifactId>
     <version>0.1.0-SNAPSHOT</version>
-    <name>BAS Intelligence</name>
+    <name>PlantSentinel</name>
     <description>AI-powered industrial monitoring, predictive maintenance and diagnostic assistant</description>
 
     <properties>

@@ -126,6 +126,23 @@ html:not([data-costume="haunted"]) .costume-only { display: none !important; }
 @keyframes live-pulse { 0%, 100% { box-shadow: 0 0 0 0 rgba(25, 135, 84, .55); } 50% { box-shadow: 0 0 0 4px rgba(25, 135, 84, 0); } }
 @keyframes card-updated { from { outline: 2px solid rgba(13, 110, 253, .55); outline-offset: 2px; } to { outline: 2px solid rgba(13, 110, 253, 0); outline-offset: 6px; } }
 @keyframes emf-sweep { from { transform: rotate(-90deg); } }
+/* the overview's tiles are links: the machine counts filter the cards (haunted-pages.js), the others open their list */
+.kpi-link { display: block; height: 100%; color: inherit; text-decoration: none; border-radius: .375rem; }
+.kpi-link:hover { color: inherit; }
+.kpi-link:focus-visible { outline: 2px solid var(--bs-primary); outline-offset: 2px; }
+.kpi-link .kpi-card { transition: box-shadow .2s; }
+html:not([data-costume="haunted"]) .kpi-link:hover .kpi-card { box-shadow: 0 0 0 1px rgba(var(--bs-primary-rgb), .3), 0 .4rem 1rem rgba(0, 0, 0, .1); }
+html:not([data-costume="haunted"]) .kpi-link[aria-current="true"] .kpi-card { box-shadow: 0 0 0 2px var(--bs-primary), 0 .4rem 1rem rgba(0, 0, 0, .1); }
+.kpi-go { color: var(--bs-link-color); text-decoration: underline; }
+.kpi-link:hover .kpi-go { color: var(--bs-link-hover-color); }
+.machine-filter {
+    display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: .4rem 1rem;
+    padding: .45rem .5rem .45rem .9rem; border-radius: .375rem; background: var(--bs-body-bg); box-shadow: 0 1px 3px rgba(0, 0, 0, .08); font-size: .875rem;
+}
+[data-filter-bar], main[data-overview] .machine-link { scroll-margin-top: .75rem; }
+/* the card a tile jumps to (the alert list) says where you landed */
+main[data-overview] .card:target { scroll-margin-top: .75rem; animation: target-call 1.8s ease-out; }
+@keyframes target-call { from { outline: 3px solid rgba(var(--bs-primary-rgb), .6); outline-offset: 2px; } to { outline: 3px solid rgba(var(--bs-primary-rgb), 0); outline-offset: 8px; } }
 
 /* chart loading and failure messages */
 .chart-box:not(.is-loaded)::after {
@@ -411,6 +428,21 @@ mark.ink { padding: 0 .12em; border-radius: .2em; background: rgba(255, 193, 7, 
 [data-costume="haunted"] .kpi-critical .kpi-ico { color: rgb(var(--h-blood)); opacity: .9; filter: drop-shadow(0 0 9px rgba(var(--h-blood), .85)); animation: candle 1.6s ease-in-out infinite; }
 [data-costume="haunted"] .kpi-alarm { border-color: rgba(var(--h-candle), .25); }
 [data-costume="haunted"] .kpi-critical { border-color: rgba(var(--h-blood), .35); box-shadow: 0 0 34px -14px rgba(var(--h-blood), .8), 0 24px 48px -30px rgba(0, 0, 0, .95); }
+[data-costume="haunted"] .kpi-link { border-radius: 14px; }
+[data-costume="haunted"] .kpi-link:focus-visible { outline: 2px solid #ffb84d; outline-offset: 3px; }
+/* the tile whose machines the overview is showing (the filter bar above the cards says it in words) */
+[data-costume="haunted"] .kpi-link[aria-current="true"] .kpi-card {
+    border-color: rgba(var(--h-candle), .6);
+    box-shadow: inset 0 1px 0 rgba(255, 255, 255, .035), 0 0 0 1px rgba(var(--h-candle), .45), 0 0 30px -10px rgba(var(--h-candle), .8);
+}
+[data-costume="haunted"] .kpi-link[aria-current="true"] .kpi-ico { opacity: .9; color: rgb(var(--h-candle)); }
+[data-costume="haunted"] .machine-filter {
+    background: linear-gradient(180deg, rgba(27, 31, 45, .82), rgba(14, 16, 25, .86)); border: 1px solid rgba(var(--h-candle), .22); border-radius: 14px;
+    box-shadow: inset 0 1px 0 rgba(255, 255, 255, .035), 0 24px 48px -30px rgba(0, 0, 0, .95);
+}
+[data-costume="haunted"] .machine-filter b { color: #ffd597; }
+[data-costume="haunted"] main[data-overview] .card:target { animation-name: target-call-h; }
+@keyframes target-call-h { from { outline: 2px solid rgba(var(--h-candle), .85); outline-offset: 2px; } to { outline: 2px solid rgba(var(--h-candle), 0); outline-offset: 10px; } }
 
 /* the narrator under the plant name */
 .night-watch { display: flex; align-items: center; gap: .45rem; margin-top: .4rem; font-size: .86rem; color: #e9dcc2; font-style: italic; }

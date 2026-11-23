@@ -1,4 +1,4 @@
-# Design: BAS Intelligence
+# Design: PlantSentinel
 
 ## Overview
 

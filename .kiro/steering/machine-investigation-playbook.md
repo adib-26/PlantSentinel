@@ -2,7 +2,7 @@
 inclusion: manual
 ---
 
-# Playbook: investigating a machine with the BAS Intelligence MCP tools
+# Playbook: investigating a machine with the PlantSentinel MCP tools
 
 Use this when the user asks you (Kiro) to investigate a machine, explain a risk or alarm, or recommend maintenance.
 The app must be running and the `bas-intelligence` MCP server connected (`/mcp`). The server also offers the

@@ -4,6 +4,7 @@
 // - slow requests (investigation, report, inspection, manual upload) show what the server is doing meanwhile
 // - search words are highlighted in manual passages; the EMF meter lights up the card of the machine you point at
 // - every figure on the overview stays live, and a change log lists what changed since the page opened
+// - the overview's tiles are links; the machine counts among them filter the machine cards
 // - the Kiro assistant fills in example questions, and questions sent from the spirit board
 // - on the sign-in page the cursor is a lantern; with the sound on, the clock tower strikes, hidden ghosts sigh when
 //   the lantern finds them, and the gate creaks as you sign in
@@ -356,6 +357,111 @@
         link.addEventListener('mouseleave', function () { led.classList.remove('is-called'); });
     });
 
+    // ------------------------------------------------------------------ the overview's tiles are links
+    // Registered machines, Operating normally and Need attention filter the machine cards under them; the cards a tile
+    // picks out light up for a moment, as when the EMF meter points at one. The filter is kept in the address
+    // (?machines=attention), so a reload, Back and a new tab keep it. Whether a machine needs attention is decided by
+    // the server (data-attention on each card, kept live by the refresh below); this only shows and hides cards. The
+    // other tiles are plain links: the alert list, the pending approvals in Maintenance and predictive analytics.
+    var overviewMain = document.querySelector('main[data-overview]');
+    var cardFilter = overviewMain ? machineFilter(overviewMain) : null;
+
+    function machineFilter(main) {
+        var SHOWS = { normal: 'false', attention: 'true' }; // the data-attention value of the cards each filter keeps
+        var bar = main.querySelector('[data-filter-bar]');
+        var status = main.querySelector('[data-filter-status]');
+        var current = null;
+        var calling = 0;
+
+        function known(filter) {
+            return Object.prototype.hasOwnProperty.call(SHOWS, filter) ? filter : null;
+        }
+
+        // Shows the cards of a filter (null: all of them) and returns their links.
+        function apply(filter, announce) {
+            current = filter;
+            var links = main.querySelectorAll('a[data-machine-card]');
+            var shown = [];
+            links.forEach(function (link) {
+                var on = !filter || link.getAttribute('data-attention') === SHOWS[filter];
+                link.parentElement.hidden = !on;
+                if (on) {
+                    shown.push(link);
+                }
+            });
+            main.querySelectorAll('a[data-machine-filter]').forEach(function (tile) {
+                if (filter && tile.getAttribute('data-machine-filter') === filter) {
+                    tile.setAttribute('aria-current', 'true');
+                } else {
+                    tile.removeAttribute('aria-current');
+                }
+            });
+            var label = filter ? main.querySelector('a[data-machine-filter="' + filter + '"] .kpi-label') : null;
+            var name = label ? label.textContent.trim() : '';
+            var count = shown.length + ' of ' + links.length + (links.length === 1 ? ' machine' : ' machines');
+            if (bar) {
+                bar.hidden = !filter;
+                if (filter) {
+                    bar.querySelector('[data-filter-label]').textContent = name;
+                    bar.querySelector('[data-filter-count]').textContent = count;
+                }
+            }
+            if (announce && status) {
+                status.textContent = 'Showing ' + count + (name ? ': ' + name : '') + '.';
+            }
+            return shown;
+        }
+
+        function call(links) {
+            clearTimeout(calling);
+            main.querySelectorAll('.machine-card.is-called').forEach(function (c) { c.classList.remove('is-called'); });
+            links.forEach(function (link) { link.querySelector('.machine-card').classList.add('is-called'); });
+            calling = setTimeout(function () {
+                links.forEach(function (link) { link.querySelector('.machine-card').classList.remove('is-called'); });
+            }, 1200);
+        }
+
+        // On a small screen the cards can be below the tiles, out of sight: bring them up.
+        function reveal() {
+            var top = bar && !bar.hidden ? bar : main.querySelector('a[data-machine-card]');
+            var r = top && top.getBoundingClientRect();
+            if (r && (r.top < 0 || r.top > window.innerHeight * .75)) {
+                top.scrollIntoView({ block: 'start', behavior: H.reducedMotion() ? 'auto' : 'smooth' });
+            }
+        }
+
+        main.addEventListener('click', function (e) {
+            var tile = e.target.closest && e.target.closest('a[data-machine-filter]');
+            if (!tile || e.defaultPrevented || e.button !== 0 || e.metaKey || e.ctrlKey || e.shiftKey || e.altKey) {
+                return; // a new tab or window opens the filtered address instead
+            }
+            e.preventDefault();
+            var filter = known(tile.getAttribute('data-machine-filter'));
+            var shown = apply(filter, true);
+            try {
+                history.replaceState(history.state, '', window.location.pathname + (filter ? '?machines=' + filter : ''));
+            } catch (err) { /* the address does not follow; the page still filters */ }
+            call(shown);
+            if (bar && bar.contains(tile) && shown.length) {
+                shown[0].focus(); // "Show all machines" hides with its bar: the keyboard carries on at the first card
+            }
+            reveal();
+        });
+
+        var start = known(new URLSearchParams(window.location.search).get('machines'));
+        if (start) {
+            apply(start, false);
+        }
+        return {
+            // after a refresh: a machine may have started or stopped needing attention
+            refresh: function () {
+                if (current) {
+                    apply(current, false);
+                }
+            }
+        };
+    }
+
     // ------------------------------------------------------------------ the overview stays live
     // The page carries the figures it was drawn with (data-overview, the same JSON as /overview.json). Every 30 s
     // they come back from /overview.json, scoped to your factory and rate limited like other risk assessments, and
@@ -363,7 +469,6 @@
     // reads exactly like a freshly loaded one. The change log under the machine cards lists, with the time, each change
     // of risk level, health or connectivity and each new critical alert. Refreshing pauses while the tab is hidden,
     // waits as long as the server asks (429 or 503 with Retry-After) and stops when the session has ended.
-    var overviewMain = document.querySelector('main[data-overview]');
     if (overviewMain) {
         liveOverview(overviewMain);
     }
@@ -542,6 +647,9 @@
                 }
             });
             next.machines.forEach(applyMachine);
+            if (cardFilter) {
+                cardFilter.refresh();
+            }
             renderAlerts(next.alerts);
         }
 
@@ -549,6 +657,7 @@
             var assessed = m.risk !== null && m.risk !== undefined;
             var link = cards[m.code];
             if (link) {
+                link.setAttribute('data-attention', m.attention ? 'true' : 'false');
                 var card = link.querySelector('.machine-card');
                 var before = card.style.getPropertyValue('--risk').trim();
                 swapClass(card, 'tone-', m.healthTone);

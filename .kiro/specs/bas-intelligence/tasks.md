@@ -1,4 +1,4 @@
-# Implementation plan: BAS Intelligence
+# Implementation plan: PlantSentinel
 
 - [x] 1. Project foundation
   - [x] 1.1 Maven project on Spring Boot 3.5 / Java 21 with Spring AI BOM, wrapper, demo (H2) and neon profiles
