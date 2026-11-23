@@ -7,7 +7,7 @@
 // - the overview's tiles are links; the machine counts among them filter the machine cards
 // - the Kiro assistant fills in example questions, and questions sent from the spirit board
 // - on the sign-in page the cursor is a lantern; with the sound on, the clock tower strikes, hidden ghosts sigh when
-//   the lantern finds them, and the gate creaks as you sign in
+//   the lantern finds them, and the gate creaks as you sign in; the button beside the password shows it
 // Text taken from the page or the server is always inserted with textContent.
 (function () {
     'use strict';
@@ -1066,4 +1066,29 @@
             }
         });
     }
+
+    // ------------------------------------------------------------------ sign-in: show the password while you type it
+    // The button beside the password field shows the password as text while it is pressed (aria-pressed), and hides it
+    // again on a second press. The password is hidden again before the form is sent and when the page is left, so the
+    // browser sees a password field when it offers to save the login, and no shown password stays on screen or is kept
+    // in the browser's history. Works in both costumes; only the icon differs (an eye, or the jack-o'-lantern).
+    document.querySelectorAll('[data-password-toggle]').forEach(function (button) {
+        var field = document.getElementById(button.getAttribute('aria-controls'));
+        if (!field) {
+            button.hidden = true;
+            return;
+        }
+        function reveal(on) {
+            field.type = on ? 'text' : 'password';
+            button.setAttribute('aria-pressed', on ? 'true' : 'false');
+            button.title = on ? 'Hide password' : 'Show password';
+        }
+        button.addEventListener('click', function () {
+            reveal(field.type === 'password');
+        });
+        if (field.form) {
+            field.form.addEventListener('submit', function () { reveal(false); });
+        }
+        window.addEventListener('pagehide', function () { reveal(false); });
+    });
 })();

@@ -26,7 +26,30 @@
             </div>
             <div class="mb-3">
                 <label for="password" class="form-label">Password</label>
-                <input id="password" name="password" type="password" class="form-control" autocomplete="current-password" required>
+                <!-- The button shows the password while it is pressed (haunted-pages.js). Its icon says what the field
+                     shows: an eye, slashed while the password is hidden; in costume a jack-o'-lantern that keeps its eyes
+                     shut while the password is hidden and opens them and lights up while it is shown. spellcheck and
+                     autocapitalize are off so a shown password is never sent to a spelling service or changed while typed. -->
+                <div class="input-group pw-field">
+                    <input id="password" name="password" type="password" class="form-control" autocomplete="current-password"
+                           spellcheck="false" autocapitalize="none" autocorrect="off" required>
+                    <button type="button" class="btn btn-outline-secondary pw-toggle" data-password-toggle aria-controls="password"
+                            aria-pressed="false" title="Show password">
+                        <svg class="hi daylight-only pw-when-hidden" aria-hidden="true"><use href="#i-eye-off"/></svg>
+                        <svg class="hi daylight-only pw-when-shown" aria-hidden="true"><use href="#i-eye"/></svg>
+                        <svg class="pw-pumpkin costume-only" viewBox="0 0 24 24" aria-hidden="true">
+                            <path class="pp-body" d="M12 6.9C8.4 5.6 4 7.5 4 12.6 4 17.8 7.6 20 9.6 20c1 0 1.6-.5 2.4-.5s1.4.5 2.4.5c2 0 5.6-2.2 5.6-7.4 0-5.1-4.4-7-8-5.7z"/>
+                            <path class="pp-stem" d="M12 6.6c-.2-1.6.4-2.9 1.8-3.6"/>
+                            <path class="pp-shut pw-when-hidden" d="M7.9 11.3q1.2 1.3 2.4 0M13.7 11.3q1.2 1.3 2.4 0"/>
+                            <g class="pp-light pw-when-shown">
+                                <path class="pp-eyes" d="M7.9 12.2 9.9 9.8l1 2.6zM16.1 12.2 14.1 9.8l-1 2.6z"/>
+                                <path class="pp-mouth" d="m8.4 14.6 1.4 1.1 1.1-.8 1.1.8 1.1-.8 1.1.8 1.4-1.1"/>
+                            </g>
+                            <path class="pp-mouth pw-when-hidden" d="m8.4 14.9 1.4.8 1.1-.6 1.1.6 1.1-.6 1.1.6 1.4-.8"/>
+                        </svg>
+                        <span class="visually-hidden">Show password</span>
+                    </button>
+                </div>
             </div>
             <button class="btn btn-primary w-100" type="submit">Sign in</button>
         </form>

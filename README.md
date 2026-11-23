@@ -117,7 +117,9 @@ The overview carries the same key under *How to read the haunting*.
 
 **Try it in two minutes** (offline demo, `./mvnw spring-boot:run`):
 1. On the sign-in page, switch **Sound** on, then move the cursor: it is a lantern. The clock tower strikes, and the
-   ghosts hidden behind the tower and in dark windows sigh when the light finds them. The gate creaks as you sign in.
+   ghosts hidden behind the tower and in dark windows sigh when the light finds them. The jack-o'-lantern beside the
+   password field shows the password: its eyes are shut while the password is hidden, and it lights up while the
+   password is shown (in daylight it is an eye). The gate creaks as you sign in.
 2. On the overview, open *How to read the haunting*. Then open a machine, choose *Simulate a machine incident*, and go
    back: once the fault reaches the readings, the card, the counts and the change log update within 30 s, without a reload.
 3. Press `/` (or Ctrl/Cmd+K) for the spirit board, an Ouija board that finds machines, pages and `INV-12`, searches

@@ -56,6 +56,14 @@ html:not([data-costume="haunted"]) .costume-only { display: none !important; }
 .login-costume { color: #495057; border-color: rgba(0, 0, 0, .2); }
 .login-costume:hover { color: #212529; border-color: rgba(0, 0, 0, .4); }
 .login-costume .haunt-switch { background: rgba(0, 0, 0, .15); }
+/* the sign-in page's password field: the button beside it shows the password (haunted-pages.js). Its icon shows the
+   field's state: an eye in daylight (slashed while the password is hidden), a jack-o'-lantern in costume (section 8).
+   costume-init.js sets data-costume on <html> before the first paint, so without scripts the button never appears. */
+.pw-toggle { display: inline-flex; align-items: center; justify-content: center; min-width: 2.75rem; padding-block: 0; --bs-btn-border-radius: var(--bs-border-radius); }
+[data-password-toggle][aria-pressed="true"] .pw-when-hidden, [data-password-toggle][aria-pressed="false"] .pw-when-shown { display: none; }
+html:not([data-costume]) [data-password-toggle] { display: none; }
+html:not([data-costume]) .pw-field > .form-control { border-radius: var(--bs-border-radius) !important; }
+html[data-costume] .pw-field > .form-control::-ms-reveal { display: none; } /* Edge's own eye: one button is enough */
 
 /* failure-risk meter under each machine card's risk */
 .haunt-meter { width: 8.5rem; height: 4px; margin-top: .4rem; border-radius: 4px; background: rgba(0, 0, 0, .08); overflow: hidden; }
@@ -1062,6 +1070,22 @@ mark.ink { padding: 0 .12em; border-radius: .2em; background: rgba(255, 193, 7, 
 /* sound off: the switch stays dim, so it reads as off next to the lit costume switch */
 [data-costume="haunted"] .login-sound[aria-pressed="false"] { color: rgba(232, 226, 214, .78); border-color: rgba(196, 181, 253, .32); }
 [data-costume="haunted"] .login-sound[aria-pressed="false"] .hi { color: inherit; filter: none; }
+/* the password's jack-o'-lantern: eyes shut while the password is hidden; it opens them and lights up while it is shown */
+[data-costume="haunted"] .btn.pw-toggle {
+    --bs-btn-color: var(--h-mist); --bs-btn-bg: rgba(4, 5, 9, .55); --bs-btn-border-color: rgba(148, 163, 184, .22);
+    --bs-btn-hover-color: #ffd597; --bs-btn-hover-bg: rgba(255, 126, 36, .1); --bs-btn-hover-border-color: rgba(var(--h-candle), .5);
+    --bs-btn-active-color: #ffd597; --bs-btn-active-bg: rgba(255, 126, 36, .16); --bs-btn-active-border-color: rgba(var(--h-candle), .6);
+}
+[data-costume="haunted"] .btn.pw-toggle[aria-pressed="true"] { --bs-btn-color: #ff9a3d; --bs-btn-bg: rgba(255, 126, 36, .08); --bs-btn-border-color: rgba(var(--h-pumpkin), .55); }
+[data-costume="haunted"] .btn.pw-toggle:focus-visible { outline: 2px solid #ffb84d; outline-offset: 2px; box-shadow: none; }
+.pw-pumpkin { width: 1.45rem; height: 1.45rem; overflow: visible; transition: filter .3s; }
+.pw-pumpkin path { fill: none; stroke: currentColor; stroke-width: 1.7; stroke-linecap: round; stroke-linejoin: round; }
+.pw-pumpkin .pp-eyes { fill: #fff1c4; stroke: #fff1c4; stroke-width: .6; }
+.pw-pumpkin .pp-light .pp-mouth { stroke: #fff1c4; }
+[data-costume="haunted"] .pw-toggle[aria-pressed="true"] .pw-pumpkin { filter: drop-shadow(0 0 5px rgba(255, 140, 40, .9)); }
+[data-costume="haunted"] .pw-toggle[aria-pressed="true"] .pp-body { fill: rgba(255, 126, 36, .3); }
+[data-costume="haunted"] .pw-toggle[aria-pressed="true"] .pp-light { animation: pumpkin-light 2.4s ease-in-out infinite; }
+@keyframes pumpkin-light { 0%, 100% { opacity: 1; } 35% { opacity: .72; } 55% { opacity: .95; } 78% { opacity: .84; } }
 /* the clock tower strikes when the sound is switched on; the gate's ghost floats aside as you sign in with sound */
 .skyline .clock.is-striking circle { animation: clock-strike 2.4s ease-out; }
 .skyline .clock.is-striking path { animation: clock-hands 2.4s ease-out; }
