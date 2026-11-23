@@ -1,0 +1,12 @@
+.git
+.idea
+.vscode
+target
+data
+ml/.venv
+ml/data
+*.log
+.env
+.env.*
+!.env.example
+.neon
