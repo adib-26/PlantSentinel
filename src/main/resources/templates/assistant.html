@@ -30,9 +30,14 @@
             </div></div>
             <div class="card"><div class="card-body small">
                 <h2 class="h5">How it works</h2>
-                <p class="mb-2">Each message runs Kiro CLI on this server with the <code>bas-web-assistant</code> agent and the
-                    <strong>Auto</strong> model, which picks a model per task. It uses the Kiro login of the server and its
-                    credits. Kiro gets a credential for this one answer that only works for your machines and ends with the
+                <p class="mb-2">Sign in to PlantSentinel with an engineer account. That is the only login this page asks for.
+                    You do not enter a Kiro password here. A viewer account can read reports but cannot send a message.</p>
+                <p class="mb-2">Kiro is signed in once on the computer that runs PlantSentinel (<code>kiro-cli login</code>).
+                    That is the host's Kiro account, not yours. Each message runs Kiro CLI there with the
+                    <code>bas-web-assistant</code> agent and the <strong>Auto</strong> model, and spends the host's Kiro credits.
+                    The host must also trust this project folder in Kiro. On a hosted copy the assistant stays off until the
+                    host turns it on.</p>
+                <p class="mb-2">Kiro gets a credential for this one answer that only works for your machines and ends with the
                     answer.</p>
                 <p class="mb-0">Every tool call is checked and logged by PlantSentinel. Kiro's text is AI interpretation: check
                     it against the evidence in the report it links to. Kiro has no shell, file or web access.</p>
