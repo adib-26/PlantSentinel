@@ -77,9 +77,16 @@ minutes, or until someone presses *Stop simulation*; then the normal simulation 
 edge node cannot be simulated. API: `POST /api/machines/{code}/incidents` `{"fault":"BEARING_WEAR","rampMinutes":5}`
 and `POST /api/incidents/{id}/stop`.
 
-Demo logins: `engineer` / `engineer123`, `reviewer` / `reviewer123` (second engineer for approvals),
-`technician` / `technician123` (sees machines an admin assigns to them and completes work assigned to them),
-`viewer` / `viewer123`, `admin` / `admin123` (Administration: users, factories, edge gateways, assignments).
+**Demo logins** (offline demo profile only; local defaults, never use them with a shared database):
+
+| Username | Password | Role | What it is for |
+|---|---|---|---|
+| `engineer` | `engineer123` | Engineer | registers machines, runs investigations, proposes and reviews recommendations |
+| `reviewer` | `reviewer123` | Engineer | the second engineer: approves what `engineer` or Kiro proposed (four-eyes rule) |
+| `technician` | `technician123` | Technician | sees the machines an admin assigns, completes work orders assigned to them |
+| `viewer` | `viewer123` | Viewer | read-only dashboards, investigations and reports |
+| `admin` | `admin123` | Admin | everything above plus Administration (users, factories, edge gateways, assignments), audit log and agent activity |
+
 Security details: `docs/security.md`. Monitoring (Actuator, metrics, structured logs): `docs/monitoring.md`.
 
 ## The haunted costume (Kiroween, Costume Contest)
