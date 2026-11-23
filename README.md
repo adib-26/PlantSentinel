@@ -82,6 +82,62 @@ Demo logins: `engineer` / `engineer123`, `reviewer` / `reviewer123` (second engi
 `viewer` / `viewer123`, `admin` / `admin123` (Administration: users, factories, edge gateways, assignments).
 Security details: `docs/security.md`. Monitoring (Actuator, metrics, structured logs): `docs/monitoring.md`.
 
+## The haunted costume (Kiroween, Costume Contest)
+
+The UI comes in two costumes. **Haunted** is the default. **Daylight** is the plain Bootstrap look, one switch away:
+the pumpkin switch in the navigation bar or under the sign-in form, remembered per browser. Every spooky effect
+shows a value that the page also states in text, so the costume is a second way to read the same plant:
+
+![The factory overview in the haunted costume: aura by failure risk, a restless CNC-01 card, the EMF meter and the candle line](docs/images/haunted-overview.jpg)
+
+![The sign-in page after dark: the lantern (the cursor) has found the ghost hiding behind the clock tower](docs/images/haunted-sign-in.jpg)
+
+| In costume | What it shows |
+|---|---|
+| Aura around a machine card, meter under its risk | failure risk: green low, amber medium, orange high, red critical, grey not assessed; a stronger glow is a higher probability |
+| Flicker and a ghost peeking over the card | health WARNING or CRITICAL, or failure risk HIGH or above |
+| Trembling card | health or failure risk CRITICAL |
+| Cobwebs and a faded card | readings are late, have stopped, or none arrived in the last hour |
+| Ghost beside a count or an alert | anomalies |
+| EMF meter | needle: mean failure risk; one light per machine, coloured by its risk level |
+| Candle line under the plant name | red: a critical alert in the last hour; amber: a machine needs attention |
+| Stone, etched, misty, parchment or ghostly evidence | measured, rule-based, model estimate, documented, AI interpretation (not verified) |
+| Poltergeist, apparition, omen, grave | sensor fault, anomaly, prediction, confirmed failure |
+| Wax seal | a recommendation approved by a second engineer |
+| The Kiro ghost in the corner | worried when a machine's health or risk is CRITICAL, uneasy at WARNING or HIGH; its badge counts them |
+
+The overview carries the same key under *How to read the haunting*.
+
+**Try it in two minutes** (offline demo, `./mvnw spring-boot:run`):
+1. On the sign-in page, switch **Sound** on, then move the cursor: it is a lantern. The clock tower strikes, and the
+   ghosts hidden behind the tower and in dark windows sigh when the light finds them. The gate creaks as you sign in.
+2. On the overview, open *How to read the haunting*. Then open a machine, choose *Simulate a machine incident*, and go
+   back: once the fault reaches the readings, the card, the counts and the change log update within 30 s, without a reload.
+3. Press `/` (or Ctrl/Cmd+K) for the spirit board, an Ouija board that finds machines, pages and `INV-12`, searches
+   the manuals and hands questions to the Kiro assistant. Hover an `[E2]` citation on an investigation to summon that
+   evidence. Approving a recommendation seals it with wax. Type `boo` anywhere outside a text field.
+
+**Accessibility and safety.** With `prefers-reduced-motion`, animations stop in both costumes, and
+`prefers-contrast: more` removes the fog. Every control works from the keyboard, printing switches to daylight,
+and small screens get a simpler layout. Sound is off until you switch it on and plays only in costume. The browser
+synthesises it (Web Audio), so there are no audio files. Scripts insert page and server text with `textContent`. The
+CSP allows no inline scripts. Live figures come from `/overview.json` and `/machines.json`, which are rate limited and
+list only the machines the user may see.
+
+## Built with Kiro
+
+What `.kiro/` contains:
+- **Spec** `specs/bas-intelligence/`: requirements, design and the implementation plan (92 checklist items, all done
+  except the five under *Next steps*).
+- **Steering** `steering/`: product, tech and structure are always included. Security is included when Kiro works on
+  config, web or agent code, and haunted-costume (the rules above) when it works on templates or static files. The
+  machine-investigation playbook is included on request.
+- **Hooks** `hooks/`: after Kiro saves a file, they check the UI scripts' syntax (there is no frontend build), keep
+  inline scripts out of the templates (the CSP would block them), and warn when an applied Flyway migration was edited.
+- **Custom agents** `agents/`: `bas-investigator` for Kiro CLI, and `bas-web-assistant`, which the app starts for the
+  in-browser assistant ([MCP integration](#mcp-integration)).
+- **MCP**: the app is an MCP server, and Kiro investigates the plant through its nine tools (below).
+
 ## MCP integration
 
 The same nine Spring services are reachable two ways:
@@ -160,11 +216,11 @@ Train the ML models: `ml/run-ml-lab.sh` (see [ml/README.md](ml/README.md)).
 | Investigations, approvals, reports | `investigation/`, `maintenance/` |
 | Kiro MCP tools and audit | `agent/` |
 | Edge (Mako Server) | `edge/` |
-| Kiro steering and specs | `.kiro/` |
+| Kiro spec, steering, hooks and agents | `.kiro/` |
 
 ## Tests
 
-`./mvnw test` runs 141 unit and integration tests (see [docs/testing.md](docs/testing.md) for the test matrix and failure scenarios), including the full engineer journey, the example agent investigation through the
+`./mvnw test` runs 218 unit and integration tests (see [docs/testing.md](docs/testing.md) for the test matrix and failure scenarios), including the full engineer journey, the example agent investigation through the
 real tool callbacks, agent policy, security chains, ML metrics and the trained-model API. `./mvnw verify` adds PostgreSQL Testcontainers tests (requires Docker).
 
 ## Licence

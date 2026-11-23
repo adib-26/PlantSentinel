@@ -1,0 +1,16 @@
+{
+  "version": "v1",
+  "hooks": [
+    {
+      "name": "Never edit an applied migration",
+      "trigger": "PostFileSave",
+      "description": "After Kiro saves a SQL file under db/, warns when a migration that is already committed differs from HEAD. Flyway validates checksums at startup, so editing an applied migration stops the app on any database that ran it; new V<n>__ files are fine.",
+      "matcher": "(^|/)src/main/resources/db/.+\\.sql$",
+      "action": {
+        "type": "command",
+        "command": "bad=\"\"; for f in $(git diff --name-only HEAD -- src/main/resources/db 2>/dev/null); do git cat-file -e \"HEAD:$f\" 2>/dev/null && bad=\"$bad $f\"; done; [ -z \"$bad\" ] && exit 0; printf \"Edited an applied migration:%s\\nFlyway checks migration checksums at startup, so a database that already ran it (Neon) refuses to start. Revert the edit and add V<n>__description.sql instead.\\n\" \"$bad\" >&2; exit 1",
+        "timeout": 10
+      }
+    }
+  ]
+}

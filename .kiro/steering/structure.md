@@ -20,7 +20,7 @@ src/main/resources/
 edge/             Mako Server edge app (Lua) and a curl-based edge client
 ml/               Python script that builds the ONNX baseline model
 docs/             architecture, ML model cards, demo script, security notes
-.kiro/            steering, specs, hooks and MCP settings for Kiro
+.kiro/            steering, specs, hooks and custom agents for Kiro (docs/kiro-mcp.json is the MCP config to copy to .kiro/settings/mcp.json)
 ```
 
 Bundled manuals are named `<MACHINE_TYPE>-<topic>.md` (lower case) to scope them to a machine type; any other name is a general manual. The first `# ` heading is the title.

@@ -31,9 +31,9 @@ html:not([data-costume="haunted"]) .costume-only { display: none !important; }
 }
 .haunt-summon kbd { font-size: .68rem; padding: .05rem .35rem; border-radius: .3rem; background: rgba(255, 255, 255, .16); color: inherit; box-shadow: none; }
 .haunt-ambience { display: inline-flex; align-items: center; justify-content: center; width: 2rem; height: 2rem; padding: 0; border-radius: 999px; }
-.haunt-ambience .ico-on { display: none; }
-.haunt-ambience[aria-pressed="true"] .ico-on { display: inline-block; }
-.haunt-ambience[aria-pressed="true"] .ico-off { display: none; }
+[data-ambience] .ico-on { display: none; }
+[data-ambience][aria-pressed="true"] .ico-on { display: inline-block; }
+[data-ambience][aria-pressed="true"] .ico-off { display: none; }
 .haunt-costume {
     display: inline-flex; align-items: center; gap: .45rem; white-space: nowrap;
     border: 1px solid rgba(255, 255, 255, .28); background: transparent; color: rgba(255, 255, 255, .86);
@@ -47,9 +47,13 @@ html:not([data-costume="haunted"]) .costume-only { display: none !important; }
     position: absolute; top: .15rem; left: .15rem; width: .85rem; height: .85rem; border-radius: 50%; background: #fff;
     transition: transform .35s cubic-bezier(.5, 1.6, .4, 1), background .35s, box-shadow .35s;
 }
-.haunt-costume[aria-checked="true"] .haunt-switch { background: linear-gradient(90deg, #ff7e24, #ffb84d); }
-.haunt-costume[aria-checked="true"] .haunt-switch > span { transform: translateX(.9rem); background: #1b0d03; box-shadow: 0 0 9px rgba(255, 140, 40, .95); }
-.login-costume { margin: 1.25rem auto 0; display: flex; color: #495057; border-color: rgba(0, 0, 0, .2); }
+.haunt-costume[aria-checked="true"] .haunt-switch, .haunt-costume[aria-pressed="true"] .haunt-switch { background: linear-gradient(90deg, #ff7e24, #ffb84d); }
+.haunt-costume[aria-checked="true"] .haunt-switch > span, .haunt-costume[aria-pressed="true"] .haunt-switch > span { transform: translateX(.9rem); background: #1b0d03; box-shadow: 0 0 9px rgba(255, 140, 40, .95); }
+/* the sign-in page's switches (costume, and in costume the sound): labelled at every width, there is room */
+.login-toggles { display: flex; flex-wrap: wrap; justify-content: center; gap: .6rem; margin-top: 1.25rem; }
+.login-toggles .haunt-costume { padding-left: .62rem; }
+.login-toggles .haunt-costume-label { position: static; width: auto; height: auto; overflow: visible; clip: auto; }
+.login-costume { color: #495057; border-color: rgba(0, 0, 0, .2); }
 .login-costume:hover { color: #212529; border-color: rgba(0, 0, 0, .4); }
 .login-costume .haunt-switch { background: rgba(0, 0, 0, .15); }
 
@@ -414,6 +418,33 @@ mark.ink { padding: 0 .12em; border-radius: .2em; background: rgba(255, 193, 7, 
 .night-watch.is-uneasy { color: #ffd597; }
 .night-watch.is-alarm { color: #ffa8b0; }
 .night-watch.is-alarm .hi { color: rgb(var(--h-blood)); }
+
+/* the key under the narrator: what each effect on the overview shows (a full-width block below the header row) */
+[data-costume="haunted"] .haunt-key { margin: -.55rem 0 1rem; font-size: .8rem; }
+[data-costume="haunted"] .haunt-key > summary {
+    display: inline-flex; align-items: center; gap: .4rem; cursor: pointer; list-style: none; color: #c4b5fd; border-radius: .3rem;
+}
+[data-costume="haunted"] .haunt-key > summary::-webkit-details-marker { display: none; }
+[data-costume="haunted"] .haunt-key > summary::before {
+    content: ""; width: .38rem; height: .38rem; border-right: 1.5px solid currentColor; border-bottom: 1.5px solid currentColor;
+    transform: rotate(-45deg); transition: transform .2s;
+}
+[data-costume="haunted"] .haunt-key[open] > summary::before { transform: rotate(45deg); }
+[data-costume="haunted"] .haunt-key > summary:hover { color: #ddd6fe; }
+[data-costume="haunted"] .haunt-key > summary:focus-visible { outline: 2px solid #ffb84d; outline-offset: 2px; }
+[data-costume="haunted"] .haunt-key-list {
+    list-style: none; margin: .5rem 0 0; padding: .7rem .9rem; max-width: 64rem; color: #cfd4e0;
+    display: grid; grid-template-columns: repeat(auto-fill, minmax(min(19rem, 100%), 1fr)); gap: .4rem 1.4rem;
+    border: 1px solid rgba(196, 181, 253, .22); border-radius: .75rem; background: rgba(15, 13, 28, .72);
+}
+[data-costume="haunted"] .haunt-key-list li { display: flex; gap: .55rem; line-height: 1.4; }
+[data-costume="haunted"] .haunt-key-list .hi { margin-top: .15rem; color: #c3d8ff; filter: drop-shadow(0 0 4px rgba(var(--h-ghost), .7)); }
+[data-costume="haunted"] .haunt-key-list b { color: #ece5d8; font-weight: 600; }
+[data-costume="haunted"] .hk-aura {
+    flex-shrink: 0; width: .85rem; height: .85rem; margin-top: .2rem; border-radius: 50%; box-shadow: 0 0 8px rgba(var(--h-candle), .7);
+    background: conic-gradient(rgb(var(--h-calm)), rgb(var(--h-candle)), rgb(var(--h-pumpkin)), rgb(var(--h-blood)), rgb(var(--h-calm)));
+}
+[data-costume="haunted"] .haunt-key-list .hk-more { grid-column: 1 / -1; display: block; padding-top: .4rem; border-top: 1px dashed rgba(148, 163, 184, .2); color: var(--bs-secondary-color); }
 
 /* ---------- badges glow in their meaning's colour ---------- */
 [data-costume="haunted"] .badge { border-radius: 999px; letter-spacing: .04em; padding: .34em .64em; font-family: var(--bs-body-font-family); }
@@ -996,6 +1027,16 @@ mark.ink { padding: 0 .12em; border-radius: .2em; background: rgba(255, 193, 7, 
 @media (hover: none) { .lantern-hint { display: none !important; } }
 [data-costume="haunted"] .login-costume { color: #ffe2b8; border-color: rgba(255, 184, 77, .45); }
 [data-costume="haunted"] .login-costume .haunt-switch { background: linear-gradient(90deg, #ff7e24, #ffb84d); }
+/* sound off: the switch stays dim, so it reads as off next to the lit costume switch */
+[data-costume="haunted"] .login-sound[aria-pressed="false"] { color: rgba(232, 226, 214, .78); border-color: rgba(196, 181, 253, .32); }
+[data-costume="haunted"] .login-sound[aria-pressed="false"] .hi { color: inherit; filter: none; }
+/* the clock tower strikes when the sound is switched on; the gate's ghost floats aside as you sign in with sound */
+.skyline .clock.is-striking circle { animation: clock-strike 2.4s ease-out; }
+.skyline .clock.is-striking path { animation: clock-hands 2.4s ease-out; }
+@keyframes clock-strike { 0%, 15% { fill: #4a3414; stroke: #ffd597; stroke-width: 4; } }
+@keyframes clock-hands { 0%, 15% { stroke: #fff3dc; stroke-width: 3; } }
+[data-costume="haunted"] .scene-login.is-entering .gate-ghost { animation: gate-welcome .6s ease-in forwards; }
+@keyframes gate-welcome { to { transform: translateY(-34px) scale(.9); opacity: 0; } }
 
 /* error pages: a tombstone */
 .tomb { position: relative; width: 220px; height: 250px; margin: 0 auto 1.2rem; }

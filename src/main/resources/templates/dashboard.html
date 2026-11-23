@@ -17,6 +17,31 @@
         </div>
         <a sec:authorize="hasRole('ENGINEER')" class="btn btn-primary" th:href="@{/machines/new}">Register machine</a>
     </div>
+    <!-- The key to the costume: what each effect on this page shows. Keep it in step with the top of haunted.css and
+         the README. Native details/summary: keyboard accessible, no script. Outside the header row, so it can use the
+         full width. -->
+    <details class="haunt-key costume-only">
+        <summary>How to read the haunting</summary>
+        <ul class="haunt-key-list">
+            <li><span class="hk-aura" aria-hidden="true"></span><span><b>Aura and meter:</b> failure risk.
+                Green is low, amber medium, orange high, red critical, grey not assessed. A stronger glow means a higher probability.</span></li>
+            <li><svg class="hi" viewBox="0 0 64 72" aria-hidden="true"><use href="#g-kiro"/></svg><span><b>Flicker and a peeking ghost:</b>
+                health WARNING or CRITICAL, or risk HIGH or above. <b>Trembling:</b> health or risk CRITICAL.</span></li>
+            <li><svg class="hi" aria-hidden="true"><use href="#i-moon"/></svg><span><b>Cobwebs and fading:</b> readings are late,
+                have stopped, or none arrived in the last hour.</span></li>
+            <li><svg class="hi" aria-hidden="true"><use href="#i-ghost"/></svg><span><b>Ghost beside a count or an alert:</b> anomalies.</span></li>
+            <li><svg class="hi" aria-hidden="true"><use href="#i-orb"/></svg><span><b>EMF meter:</b> the needle is the mean failure risk;
+                each light is one machine, coloured by its risk level.</span></li>
+            <li><svg class="hi" aria-hidden="true"><use href="#i-candle"/></svg><span><b>Candle line:</b> red when a critical alert came in
+                during the last hour, amber when a machine needs attention.</span></li>
+            <li><svg class="hi" viewBox="0 0 64 72" aria-hidden="true"><use href="#g-kiro"/></svg><span><b>Kiro in the corner:</b> worried
+                when a machine's health or risk is CRITICAL, uneasy when its health is WARNING or its risk HIGH. The badge counts them.</span></li>
+            <li class="hk-more">On other pages, evidence is stone (measured), etched (rule-based), misty (model estimate),
+                parchment (documented) or ghostly (AI interpretation, not verified). A poltergeist, an apparition, an omen and a grave
+                are a sensor fault, an anomaly, a prediction and a confirmed failure. A wax seal marks a recommendation that a
+                second engineer approved.</li>
+        </ul>
+    </details>
 
     <div class="row g-3 mb-3">
         <div class="col-6 col-lg-2"><div class="card h-100 kpi-card"><div class="card-body">

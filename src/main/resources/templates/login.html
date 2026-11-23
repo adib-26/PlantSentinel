@@ -31,13 +31,23 @@
             <button class="btn btn-primary w-100" type="submit">Sign in</button>
         </form>
     </div></div>
-    <p class="lantern-hint costume-only">Move your lantern across the plant. Not every window is empty.</p>
-    <button type="button" class="haunt-costume login-costume" data-costume-toggle role="switch" aria-checked="false"
-            title="Switch the haunted costume on or off">
-        <svg class="hi" aria-hidden="true"><use href="#i-pumpkin"/></svg>
-        <span class="haunt-costume-label">Costume</span>
-        <span class="haunt-switch" aria-hidden="true"><span></span></span>
-    </button>
+    <p class="lantern-hint costume-only">Move your lantern across the plant. Not every window is empty; switch the sound on and listen.</p>
+    <!-- Sound starts only when switched on (browsers also need a click or key press first), and only in costume. -->
+    <div class="login-toggles">
+        <button type="button" class="haunt-costume login-costume" data-costume-toggle role="switch" aria-checked="false"
+                title="Switch the haunted costume on or off">
+            <svg class="hi" aria-hidden="true"><use href="#i-pumpkin"/></svg>
+            <span class="haunt-costume-label">Costume</span>
+            <span class="haunt-switch" aria-hidden="true"><span></span></span>
+        </button>
+        <button type="button" class="haunt-costume login-sound costume-only" data-ambience aria-pressed="false"
+                title="Ambient sound (off)">
+            <svg class="hi ico-on" aria-hidden="true"><use href="#i-sound"/></svg>
+            <svg class="hi ico-off" aria-hidden="true"><use href="#i-mute"/></svg>
+            <span class="haunt-costume-label">Sound</span>
+            <span class="haunt-switch" aria-hidden="true"><span></span></span>
+        </button>
+    </div>
 </main>
 
 <svg th:replace="~{fragments :: icons}"></svg>

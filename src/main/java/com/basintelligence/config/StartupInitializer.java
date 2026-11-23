@@ -46,6 +46,13 @@ public class StartupInitializer implements ApplicationRunner {
     private static final Logger log = LoggerFactory.getLogger(StartupInitializer.class);
     private static final String SYSTEM = "system";
     private static final Duration HISTORY_STEP = Duration.ofMinutes(1);
+    /**
+     * The newest part of the seeded history uses the simulator's interval, so the data-quality check (the last hour)
+     * sees one cadence once the simulator takes over. With one-minute history the check counted each minute as five
+     * missing readings as soon as the simulator's readings were the majority, so from about ten minutes after a fresh
+     * start until the first hour had passed the demo showed as little as 30% completeness.
+     */
+    private static final Duration RECENT_HISTORY = Duration.ofHours(1);
 
     private final DeviceTypeCatalog deviceTypes;
     private final FactoryService factories;
@@ -113,11 +120,13 @@ public class StartupInitializer implements ApplicationRunner {
         log.info("Seeding demo plant with {} of telemetry history", history);
         TelemetryGenerator generator = new TelemetryGenerator(new Random(7), TelemetrySimulator.RAMP, 0.004);
         Instant now = clock.instant();
+        Duration recentStep = recentStep();
+        Instant recentFrom = now.minus(RECENT_HISTORY);
         for (DemoScenarios.DemoMachine dm : DemoScenarios.PLANT) {
             Machine machine = machineService.register(
                     new MachineService.RegisterMachine(dm.code(), dm.name(), dm.type(), dm.location()), SYSTEM);
             Instant start = machine.createdAt().minus(history);
-            for (Instant t = start; t.isBefore(now); t = t.plus(HISTORY_STEP)) {
+            for (Instant t = start; t.isBefore(now); t = t.plus(t.isBefore(recentFrom) ? HISTORY_STEP : recentStep)) {
                 telemetry.ingest(machineService.get(machine.id()),
                         generator.generate(machine.id(), dm.type(), dm.scenario(), start, t));
             }
@@ -131,6 +140,17 @@ public class StartupInitializer implements ApplicationRunner {
         inspections.inspectSample(cnc, "Spindle bearing housing", SampleImageGenerator.Kind.CRACK, SYSTEM);
         inspections.inspectSample(machineService.getByCode("PUMP-02"), "Impeller", SampleImageGenerator.Kind.GOOD, SYSTEM);
         log.info("Demo plant ready");
+    }
+
+    /**
+     * The simulator's interval when it runs and is shorter than {@link #HISTORY_STEP}; otherwise one minute. Never
+     * zero or negative, so the seeding loop always advances.
+     */
+    private Duration recentStep() {
+        Duration interval = properties.simulator().interval();
+        boolean usable = properties.simulator().enabled() && interval != null && interval.isPositive()
+                && interval.compareTo(HISTORY_STEP) < 0;
+        return usable ? interval : HISTORY_STEP;
     }
 
     /** Uses the first Markdown heading as the title. */

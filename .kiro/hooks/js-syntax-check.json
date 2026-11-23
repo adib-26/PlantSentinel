@@ -1,0 +1,16 @@
+{
+  "version": "v1",
+  "hooks": [
+    {
+      "name": "Check UI script syntax",
+      "trigger": "PostFileSave",
+      "description": "After Kiro saves a script under static/js, checks the syntax of every app script with node --check. The UI has no frontend build, so a syntax error would otherwise only show up as a page whose scripts silently stopped working. Skips itself when Node.js is not installed.",
+      "matcher": "(^|/)src/main/resources/static/js/[^/]+\\.js$",
+      "action": {
+        "type": "command",
+        "command": "command -v node >/dev/null 2>&1 || exit 0; fail=0; for f in src/main/resources/static/js/*.js; do out=$(node --check \"$f\" 2>&1) || { printf \"Syntax error in %s. There is no frontend build to catch it, so the page would lose this script:\\n%s\\n\" \"$f\" \"$out\" >&2; fail=1; }; done; exit $fail",
+        "timeout": 20
+      }
+    }
+  ]
+}

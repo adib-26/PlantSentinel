@@ -1,0 +1,16 @@
+{
+  "version": "v1",
+  "hooks": [
+    {
+      "name": "Keep inline scripts out of templates",
+      "trigger": "PostFileSave",
+      "description": "After Kiro saves a Thymeleaf template, looks for inline script blocks, on* event-handler attributes (including th:on*) and javascript: links. The Content-Security-Policy (script-src 'self') blocks all of them, so they would fail silently in the browser.",
+      "matcher": "(^|/)src/main/resources/templates/[^/]+\\.html$",
+      "action": {
+        "type": "command",
+        "command": "hits=$( (grep -nHE \"<script([[:space:]>]|$)\" src/main/resources/templates/*.html | grep -v \"src=\"; grep -nHE \"([[:space:]]|th:)on[a-z]+=|javascript:\" src/main/resources/templates/*.html) 2>/dev/null ); [ -z \"$hits\" ] && exit 0; printf \"The CSP (script-src self) blocks inline scripts, on* handlers and javascript: links; move this code to src/main/resources/static/js:\\n%s\\n\" \"$hits\" >&2; exit 1",
+        "timeout": 10
+      }
+    }
+  ]
+}

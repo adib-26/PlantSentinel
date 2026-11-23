@@ -5,7 +5,8 @@
 // - search words are highlighted in manual passages; the EMF meter lights up the card of the machine you point at
 // - every figure on the overview stays live, and a change log lists what changed since the page opened
 // - the Kiro assistant fills in example questions, and questions sent from the spirit board
-// - on the sign-in page the cursor is a lantern
+// - on the sign-in page the cursor is a lantern; with the sound on, the clock tower strikes, hidden ghosts sigh when
+//   the lantern finds them, and the gate creaks as you sign in
 // Text taken from the page or the server is always inserted with textContent.
 (function () {
     'use strict';
@@ -359,7 +360,7 @@
     // The page carries the figures it was drawn with (data-overview, the same JSON as /overview.json). Every 30 s
     // they come back from /overview.json, scoped to your factory and rate limited like other risk assessments, and
     // every count, card, badge, light and alert follows them. The server formats the texts, so a refreshed figure
-    // reads exactly like a freshly loaded one. The change log under the risk summary lists, with the time, each change
+    // reads exactly like a freshly loaded one. The change log under the machine cards lists, with the time, each change
     // of risk level, health or connectivity and each new critical alert. Refreshing pauses while the tab is hidden,
     // waits as long as the server asks (429 or 503 with Retry-After) and stops when the session has ended.
     var overviewMain = document.querySelector('main[data-overview]');
@@ -840,7 +841,9 @@
         }).observe(steps, { childList: true });
     }
 
-    // ------------------------------------------------------------------ sign-in: the lantern
+    // ------------------------------------------------------------------ sign-in: the lantern, and the night's sounds
+    // The cursor is a lantern. With the sound on (the Sound switch under the form): the clock tower strikes when the
+    // sound starts, a hidden ghost sighs when the lantern finds it, and the gate creaks as you sign in.
     var scene = document.querySelector('.scene-login .haunt-scene');
     var lantern = scene && scene.querySelector('.lantern');
     var skyline = scene && scene.querySelector('.skyline');
@@ -848,6 +851,20 @@
     if (lantern && skyline && spot) {
         var frame = 0;
         var last = null;
+        var spirits = hiddenSpirits(skyline);
+        var lastSigh = 0;
+        // A spirit sighs when the light reaches it: once per visit, at most every 8 s, never two within 1.8 s.
+        var listenFor = function (x, y) {
+            var now = Date.now();
+            spirits.forEach(function (s) {
+                var inside = Math.hypot(x - s.x, y - s.y) < (s.big ? 130 : 100);
+                if (inside && !s.inside && now - lastSigh > 1800 && now - s.at > 8000 && H.sigh && H.sigh(s.big)) {
+                    lastSigh = now;
+                    s.at = now;
+                }
+                s.inside = inside;
+            });
+        };
         var moveTo = function (x, y) {
             lantern.style.setProperty('--mx', x.toFixed(0) + 'px');
             lantern.style.setProperty('--my', y.toFixed(0) + 'px');
@@ -856,6 +873,7 @@
                 var p = new DOMPoint(x, y).matrixTransform(ctm.inverse());
                 spot.setAttribute('cx', p.x.toFixed(1));
                 spot.setAttribute('cy', p.y.toFixed(1));
+                listenFor(p.x, p.y);
             }
         };
         document.addEventListener('pointermove', function (e) {
@@ -873,6 +891,69 @@
             if (H.isHaunted() && e.target.matches('input, button')) {
                 var r = e.target.getBoundingClientRect();
                 moveTo(r.left + r.width / 2, r.top + r.height / 2);
+            }
+        });
+        // switching the sound on: the clock tower strikes, and its face glows while the bell sounds
+        var clock = skyline.querySelector('.clock');
+        document.addEventListener('ambiencechange', function (e) {
+            if (e.detail && e.detail.on && H.toll && H.toll() && clock) {
+                clock.classList.remove('is-striking');
+                void clock.getBoundingClientRect();
+                clock.classList.add('is-striking');
+                setTimeout(function () { clock.classList.remove('is-striking'); }, 2400);
+            }
+        });
+    }
+
+    // The ghost behind the clock tower and each pair of eyes in a dark window, in the skyline's own coordinates
+    // (read from the markup, so it works before the scene is drawn, e.g. when the page opens in daylight).
+    function hiddenSpirits(svg) {
+        var out = [];
+        var tower = svg.querySelectorAll('.tower-ghost .tg-eye');
+        if (tower.length) {
+            var tx = 0;
+            var ty = 0;
+            tower.forEach(function (n) {
+                tx += +n.getAttribute('cx');
+                ty += +n.getAttribute('cy');
+            });
+            out.push({ x: tx / tower.length, y: ty / tower.length, big: true, inside: false, at: 0 });
+        }
+        svg.querySelectorAll('.window-eyes ellipse').forEach(function (n) {
+            var x = +n.getAttribute('cx');
+            var y = +n.getAttribute('cy');
+            var pair = out.filter(function (s) { return !s.big && Math.abs(s.y - y) < 1 && Math.abs(s.x - x) < 12; })[0];
+            if (pair) {
+                pair.x = (pair.x + x) / 2;
+            } else {
+                out.push({ x: x, y: y, big: false, inside: false, at: 0 });
+            }
+        });
+        return out;
+    }
+
+    // Signing in with the sound on: the gate creaks open and its ghost floats aside, then the form is sent as usual.
+    // With the sound off the form is sent at once.
+    var gate = document.querySelector('.scene-login form');
+    if (gate) {
+        gate.addEventListener('submit', function (e) {
+            if (gate.dataset.sent) {
+                e.preventDefault(); // already on its way
+                return;
+            }
+            var wait = H.isHaunted() && H.creak ? H.creak() : 0;
+            if (!wait) {
+                return;
+            }
+            e.preventDefault();
+            gate.dataset.sent = '1';
+            document.body.classList.add('is-entering');
+            setTimeout(function () { HTMLFormElement.prototype.submit.call(gate); }, wait);
+        });
+        window.addEventListener('pageshow', function (e) {
+            if (e.persisted) {
+                delete gate.dataset.sent;
+                document.body.classList.remove('is-entering');
             }
         });
     }

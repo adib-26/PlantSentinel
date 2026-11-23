@@ -1,5 +1,6 @@
-// The haunted costume: switching costumes, ambient sound, and the atmosphere (fog, bats, lantern light on cards,
-// ghost eyes that follow the cursor). Every effect is decoration on top of the page; nothing here changes data.
+// The haunted costume: switching costumes, ambient sound (and the sounds of the sign-in scene), and the atmosphere
+// (fog, bats, lantern light on cards, ghost eyes that follow the cursor). Every effect is decoration on top of the
+// page; nothing here changes data. Sound is off until the engineer switches it on, and it only plays in costume.
 // Motion is skipped when the operating system asks for reduced motion. Typing "boo" outside a text field is a secret.
 (function () {
     'use strict';
@@ -108,19 +109,18 @@
         });
     }
 
+    // The tab icon: the ghost in costume, the page's own gauge icon (#site-favicon in the head) in daylight.
     function favicon() {
-        var link = document.getElementById('haunt-favicon');
-        if (isHaunted()) {
-            if (!link) {
-                link = document.createElement('link');
-                link.id = 'haunt-favicon';
-                link.rel = 'icon';
-                link.type = 'image/svg+xml';
-                link.href = GHOST_FAVICON;
-                document.head.appendChild(link);
-            }
-        } else if (link) {
-            link.remove();
+        var link = document.getElementById('site-favicon');
+        if (!link) {
+            return;
+        }
+        if (!link.dataset.daylight) {
+            link.dataset.daylight = link.getAttribute('href');
+        }
+        var href = isHaunted() ? GHOST_FAVICON : link.dataset.daylight;
+        if (link.getAttribute('href') !== href) {
+            link.setAttribute('href', href);
         }
     }
 
@@ -218,6 +218,7 @@
             stopAmbience();
         }
         syncControls();
+        document.dispatchEvent(new CustomEvent('ambiencechange', { detail: { on: on } }));
     }
 
     function tone(freqFrom, freqTo, peak, at, length) {
@@ -258,6 +259,141 @@
         tone(587, 570, .035, t + .02, 2.6);
     }
     H.chime = chime;
+
+    // ---------------------------------------------------------------- sounds of the sign-in scene (haunted-pages.js)
+    // Each one plays only when the sound is on, it has started (browsers need a click or key press first) and the
+    // costume is on.
+    function soundOn() {
+        return !!audio && audio.ctx.state !== 'closed' && store('bas.ambience') === 'on' && isHaunted();
+    }
+
+    // one sine partial of a struck sound: a fast attack, then an exponential fade
+    function partial(freq, peak, at, decay, out) {
+        var o = audio.ctx.createOscillator();
+        var g = audio.ctx.createGain();
+        o.frequency.value = freq;
+        g.gain.setValueAtTime(0, at);
+        g.gain.linearRampToValueAtTime(peak, at + .008);
+        g.gain.exponentialRampToValueAtTime(.0001, at + decay);
+        o.connect(g);
+        g.connect(out);
+        o.start(at);
+        o.stop(at + decay + .05);
+    }
+
+    // The clock tower strikes once. A bell is a few inharmonic partials (hum, prime, minor third, fifth, nominal and
+    // two upper ones), each fading at its own speed; a low-pass filter puts the tower across the yard.
+    // Returns whether it played (likewise H.sigh).
+    H.toll = function () {
+        if (!soundOn()) {
+            return false;
+        }
+        var ctx = audio.ctx;
+        var far = ctx.createBiquadFilter();
+        far.type = 'lowpass';
+        far.frequency.value = 1500;
+        far.connect(ctx.destination);
+        var t = ctx.currentTime + .05;
+        [[.5, .035, 6], [1, .045, 4.5], [1.19, .022, 3.2], [1.5, .016, 2.6], [2, .024, 2.2], [2.74, .009, 1.5], [3.76, .006, 1.1]]
+            .forEach(function (p) { partial(131 * p[0], p[1], t, p[2], far); });
+        return true;
+    };
+
+    // A ghost caught in the lantern light sighs: a wavering "oooh" that rises a fourth and sinks, with breath on it.
+    // The ghost behind the clock tower is large and low; the eyes in the windows are small and higher.
+    H.sigh = function (big) {
+        if (!soundOn()) {
+            return false;
+        }
+        var ctx = audio.ctx;
+        var t = ctx.currentTime + .03;
+        var len = big ? 2.3 : 1.3;
+        var f = big ? 262 : 440;
+        var voice = ctx.createOscillator();
+        voice.type = 'triangle';
+        voice.frequency.setValueAtTime(f, t);
+        voice.frequency.linearRampToValueAtTime(f * 1.33, t + len * .42);
+        voice.frequency.linearRampToValueAtTime(f * .94, t + len);
+        var wobble = ctx.createOscillator();
+        wobble.frequency.value = 5.2;
+        var depth = ctx.createGain();
+        depth.gain.value = f * .02;
+        wobble.connect(depth);
+        depth.connect(voice.frequency);
+        var mouth = ctx.createBiquadFilter();
+        mouth.type = 'lowpass';
+        mouth.frequency.value = big ? 900 : 1500;
+        var level = ctx.createGain();
+        level.gain.setValueAtTime(0, t);
+        level.gain.linearRampToValueAtTime(big ? .05 : .035, t + len * .35);
+        level.gain.linearRampToValueAtTime(0, t + len);
+        voice.connect(mouth);
+        mouth.connect(level);
+        level.connect(ctx.destination);
+        if (!audio.hiss) {
+            audio.hiss = ctx.createBuffer(1, ctx.sampleRate, ctx.sampleRate);
+            var samples = audio.hiss.getChannelData(0);
+            for (var i = 0; i < samples.length; i++) {
+                samples[i] = Math.random() * 2 - 1;
+            }
+        }
+        var breath = ctx.createBufferSource();
+        breath.buffer = audio.hiss;
+        breath.loop = true;
+        var throat = ctx.createBiquadFilter();
+        throat.type = 'bandpass';
+        throat.frequency.value = big ? 700 : 1200;
+        throat.Q.value = 1.4;
+        var air = ctx.createGain();
+        air.gain.setValueAtTime(0, t);
+        air.gain.linearRampToValueAtTime(.12, t + len * .3);
+        air.gain.linearRampToValueAtTime(0, t + len);
+        breath.connect(throat);
+        throat.connect(air);
+        air.connect(ctx.destination);
+        [voice, wobble, breath].forEach(function (n) {
+            n.start(t);
+            n.stop(t + len + .05);
+        });
+        return true;
+    };
+
+    // The gate creaks open as you sign in: wood rubbing on wood is a buzz whose rate keeps changing (stick and slip),
+    // ringing in a few narrow resonances. Returns how long to wait before sending the form (ms); 0 when silent.
+    H.creak = function () {
+        if (!soundOn()) {
+            return 0;
+        }
+        var ctx = audio.ctx;
+        var t = ctx.currentTime + .02;
+        var len = .75;
+        var rub = ctx.createOscillator();
+        rub.type = 'sawtooth';
+        rub.frequency.setValueAtTime(34, t);
+        [[.18, 62], [.32, 48], [.5, 88], [.62, 70], [len, 56]].forEach(function (k) {
+            rub.frequency.linearRampToValueAtTime(k[1], t + k[0]);
+        });
+        var push = ctx.createGain();
+        push.gain.setValueAtTime(0, t);
+        push.gain.linearRampToValueAtTime(1, t + .05);
+        push.gain.setValueAtTime(1, t + len - .2);
+        push.gain.linearRampToValueAtTime(0, t + len);
+        var out = ctx.createGain();
+        out.gain.value = .45;
+        [[760, 8], [1480, 10], [2600, 12]].forEach(function (r) {
+            var wood = ctx.createBiquadFilter();
+            wood.type = 'bandpass';
+            wood.frequency.value = r[0];
+            wood.Q.value = r[1];
+            push.connect(wood);
+            wood.connect(out);
+        });
+        rub.connect(push);
+        out.connect(ctx.destination);
+        rub.start(t);
+        rub.stop(t + len + .05);
+        return Math.round((len - .15) * 1000);
+    };
 
     // ---------------------------------------------------------------- atmosphere
     function ensureAtmosphere() {
