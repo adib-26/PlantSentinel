@@ -50,6 +50,15 @@ SPRING_PROFILES_ACTIVE=neon ./mvnw spring-boot:run
 Connect Kiro: copy `docs/kiro-mcp.json` to `.kiro/settings/mcp.json`, export `BAS_AGENT_API_KEY`, then run `/mcp`.
 Ask: *"Why is machine CNC-01 showing a high failure risk?"* (or load the `investigate_machine` prompt).
 
+## Public site
+
+The public site is the demo profile. Sign in as `engineer` / `engineer123` or `reviewer` / `reviewer123`. It does not
+run Kiro, and it asks for no Kiro password or API key. Reports, charts, the costume and approvals work there.
+
+The Kiro assistant runs only on a computer where `kiro-cli login` has been completed for the person running the app.
+Each message spends that Kiro account's credits. A free Kiro login is enough on that computer. A public host such as
+Render's free web service cannot keep that login.
+
 ## Screens
 
 Thymeleaf + Bootstrap, no frontend build. Every AI-derived value is labelled **measured**, **rule-based**,
@@ -61,7 +70,7 @@ Thymeleaf + Bootstrap, no frontend build. Every AI-derived value is labelled **m
 | 2 Machine monitoring | `/machines/{code}` | details, 5 telemetry charts (2 h raw, 24 h / 7 d from 5-minute rollups), connectivity, data quality (interval, gaps, completeness, stuck sensors, edge vs simulated), historical readings |
 | 3 Predictive analytics | `/analytics` | Isolation Forest scores, risk estimates and trends, risk-model performance and feature weights, per-prediction log-odds contributions, prediction history chart, versions of all models |
 | 4 Report | `/reports`, `/investigations/{id}` | generate a report with the deterministic Java pipeline; the investigation page shows the evidence map, linked `[E2]` citations, tool execution trace, confidence and limitations |
-| 5 Kiro assistant | `/assistant` | a conversation with Kiro in the browser, for users with the Engineer role (`engineer`, `reviewer` and `admin`; not `technician` or `viewer`): each message runs Kiro CLI on the server over MCP, limited to the engineer's machines; shows the tool calls, the reports Kiro wrote and the credits used ([how it is secured](docs/security.md#kiro-assistant-in-the-browser)) |
+| 5 Kiro assistant | `/assistant` | on a machine where Kiro CLI is signed in: a conversation for users with the Engineer role (`engineer`, `reviewer` and `admin`; not `technician` or `viewer`). Each message runs Kiro CLI there over MCP, limited to that person's machines, and shows the tool calls, the reports and the credits used. The public site does not run Kiro ([how it is secured](docs/security.md#kiro-assistant-in-the-browser)) |
 | 6 Maintenance | `/maintenance` | pending approvals, recommendations, work orders with technician assignment and completion, incident reports, approval decisions and audit trail |
 | 7 Knowledge | `/manuals`, `/manuals/{id}` | upload, browse, full-text search linked to exact sections, extracted sections with page numbers, which investigations cited each section |
 
@@ -77,7 +86,7 @@ minutes, or until someone presses *Stop simulation*; then the normal simulation 
 edge node cannot be simulated. API: `POST /api/machines/{code}/incidents` `{"fault":"BEARING_WEAR","rampMinutes":5}`
 and `POST /api/incidents/{id}/stop`.
 
-**Demo logins** (offline demo profile only; local defaults, never use them with a shared database):
+**Demo logins** (offline demo profile only; local defaults, never use them with a shared database). On the public site these accounts open the plant. The Kiro assistant itself answers only where Kiro CLI is signed in:
 
 | Username | Password | Role | What it is for |
 |---|---|---|---|
@@ -190,11 +199,11 @@ are allowed, and `maintenance_create_draft` is `ask`, so Kiro needs a human yes 
 ./mcp/kiro-demo.sh --create-draft  # resume and explicitly approve that one write
 ```
 
-The **Kiro assistant** page runs Kiro for you from the browser with a second agent, `.kiro/agents/bas-web-assistant.json`.
+The **Kiro assistant** page runs Kiro from the browser with a second agent, `.kiro/agents/bas-web-assistant.json`.
 It has the read tools and the report tool only, always uses Kiro's Auto model, and gets a short-lived token that limits
-it to your machines. It needs Kiro
-CLI installed and signed in (`kiro-cli login`) for the user running the app, this folder trusted in Kiro, and the app
-on port 8080. Each message spends that Kiro login's credits.
+it to your machines. It needs Kiro CLI installed and signed in (`kiro-cli login`) for the user running the app, this
+folder trusted in Kiro, and the app on port 8080. Each message spends that Kiro login's credits. The public site leaves
+this switched off. Visitors are not asked to install Kiro or to bring a key.
 
 ## The agent
 
