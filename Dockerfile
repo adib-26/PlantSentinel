@@ -1,6 +1,8 @@
 # Render web service. Java 21 plus the native library ONNX Runtime needs.
 # The public site does not run Kiro. A free Kiro login cannot be kept on Render.
 FROM eclipse-temurin:21-jdk-jammy AS build
+RUN apt-get update && apt-get install -y --no-install-recommends curl unzip ca-certificates \
+    && rm -rf /var/lib/apt/lists/*
 WORKDIR /src
 COPY . .
 RUN chmod +x mvnw && ./mvnw -B -DskipTests package
