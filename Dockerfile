@@ -1,13 +1,12 @@
 # Render web service. Java 21 plus the native library ONNX Runtime needs.
 # The public site does not run Kiro. A free Kiro login cannot be kept on Render.
 FROM eclipse-temurin:21-jdk-jammy AS build
-RUN apt-get update && apt-get install -y --no-install-recommends curl ca-certificates \
-    && curl -fsSL -o /tmp/maven.tgz https://repo.maven.apache.org/maven2/org/apache/maven/apache-maven/3.9.11/apache-maven-3.9.11-bin.tar.gz \
-    && tar -xzf /tmp/maven.tgz -C /opt \
-    && ln -s /opt/apache-maven-3.9.11/bin/mvn /usr/local/bin/mvn \
-    && rm /tmp/maven.tgz \
+# Maven Central rejects this download from Render (curl exit 22). Ubuntu's package does not.
+RUN apt-get update && apt-get install -y --no-install-recommends maven \
     && rm -rf /var/lib/apt/lists/*
 WORKDIR /src
+ENV JAVA_HOME=/opt/java/openjdk
+ENV PATH="/opt/java/openjdk/bin:${PATH}"
 COPY . .
 # Tests run in GitHub Actions. Skip them here so the image build only compiles the application.
 RUN mvn -B -e -Dmaven.test.skip=true package
