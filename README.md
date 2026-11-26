@@ -144,6 +144,8 @@ list only the machines the user may see.
 
 ## Built with Kiro
 
+Full write-up: [docs/kiro-usage.md](docs/kiro-usage.md).
+
 What `.kiro/` contains:
 - **Spec** `specs/bas-intelligence/`: requirements, design and the implementation plan (92 checklist items, all done
   except the five under *Next steps*).
